@@ -1,5 +1,9 @@
 package me.squeeglii.plugin.eventfw.command;
 
+import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.builder.RequiredArgumentBuilder;
+import com.mojang.brigadier.tree.LiteralCommandNode;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 
@@ -19,7 +23,9 @@ public class JoinCommand extends ConfiguredCommand {
     }
 
     @Override
-    public List<String> onTabComplete(CommandSender sender, Command command, String label, String[] args) {
-        return null;
+    public LiteralCommandNode<?> configureTabCompletion() {
+        return LiteralArgumentBuilder.literal(this.getId()).then(
+                RequiredArgumentBuilder.argument("id", StringArgumentType.word())
+        ).build();
     }
 }

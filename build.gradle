@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id "com.github.johnrengelman.shadow" version "8.1.1"
+    id("io.papermc.paperweight.userdev") version "1.5.5"
 }
 
 boolean isModVersionDefined = project.properties["plugin_version"] == null ||
@@ -32,17 +33,9 @@ repositories {
 
 
 dependencies {
-    compileOnly "org.spigotmc:spigot-api:${project.properties.spigot_distribution}"
+    paperweight.paperDevBundle("1.20.2-R0.1-SNAPSHOT")
+
     implementation "me.lucko:commodore:${project.properties.lucko_command_api}"
-}
-
-processResources {
-    inputs.property "version", project.version
-    filteringCharset 'UTF-8'
-
-    filesMatching('plugin.yml') {
-        expand project.properties
-    }
 }
 
 shadowJar {
@@ -54,6 +47,22 @@ shadowJar {
     relocate 'me.lucko.commodore', 'me.squeeglii.plugin.eventfw.commodore'
 }
 
+processResources {
+    inputs.property "version", project.version
+    filteringCharset 'UTF-8'
+
+    filesMatching('plugin.yml') {
+        expand project.properties
+    }
+
+    filesMatching('paper-plugin.yml') {
+        expand project.properties
+    }
+}
+
+tasks.assemble {
+    dependsOn(reobfJar)
+}
 
 def targetJavaVersion = 17
 java {

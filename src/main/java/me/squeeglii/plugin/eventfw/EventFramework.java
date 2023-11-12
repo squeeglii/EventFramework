@@ -1,10 +1,10 @@
 package me.squeeglii.plugin.eventfw;
 
+import me.lucko.commodore.CommodoreProvider;
 import me.squeeglii.plugin.eventfw.command.ConfiguredCommand;
 import me.squeeglii.plugin.eventfw.command.EventCommand;
 import me.squeeglii.plugin.eventfw.command.JoinCommand;
 import org.bukkit.command.PluginCommand;
-import org.bukkit.entity.Player;
 import org.bukkit.plugin.java.JavaPlugin;
 
 public final class EventFramework extends JavaPlugin {
@@ -19,7 +19,6 @@ public final class EventFramework extends JavaPlugin {
 
         this.registerCommand(new EventCommand());
         this.registerCommand(new JoinCommand());
-
     }
 
     @Override
@@ -38,7 +37,11 @@ public final class EventFramework extends JavaPlugin {
         }
 
         cmd.setExecutor(command);
-        cmd.setTabCompleter(command);
+
+        if (CommodoreProvider.isSupported()) {
+            CommodoreProvider.getCommodore(this)
+                             .register(cmd, command.configureTabCompletion());
+        }
     }
 
 
