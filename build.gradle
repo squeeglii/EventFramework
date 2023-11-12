@@ -1,0 +1,100 @@
+plugins {
+    id 'java'
+    id "com.github.johnrengelman.shadow" version "8.1.1"
+}
+
+boolean isModVersionDefined = project.properties["plugin_version"] == null ||
+        project.properties["plugin_version"].toString().length() == 0
+
+String pluginVer = isModVersionDefined
+        ? "indev"
+        : project.properties["plugin_version"].toString()
+
+group = project.properties.maven_group
+version = "%s+%s.spigot".formatted(pluginVer, project.properties["minecraft_version"])
+
+
+repositories {
+    mavenCentral()
+    maven {
+        name = "spigotmc-repo"
+        url = "https://hub.spigotmc.org/nexus/content/repositories/snapshots/"
+    }
+    maven {
+        name = "sonatype"
+        url = "https://oss.sonatype.org/content/groups/public/"
+    }
+    maven {
+        name = "mojang"
+        url = 'https://libraries.minecraft.net/'
+    }
+}
+
+
+dependencies {
+    compileOnly "org.spigotmc:spigot-api:${project.properties.spigot_distribution}"
+    implementation "me.lucko:commodore:${project.properties.lucko_command_api}"
+}
+
+processResources {
+    inputs.property "version", project.version
+    filteringCharset 'UTF-8'
+
+    filesMatching('plugin.yml') {
+        expand project.properties
+    }
+}
+
+shadowJar {
+    dependencies {
+        exclude(dependency('com.mojang:brigadier'))
+    }
+
+    // Shade in command api and avoid conflicts :)
+    relocate 'me.lucko.commodore', 'me.squeeglii.plugin.eventfw.commodore'
+}
+
+
+def targetJavaVersion = 17
+java {
+    def javaVersion = JavaVersion.toVersion(targetJavaVersion)
+    sourceCompatibility = javaVersion
+    targetCompatibility = javaVersion
+
+    if (JavaVersion.current() < javaVersion) {
+        toolchain.languageVersion.set(JavaLanguageVersion.of(targetJavaVersion))
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
+        options.release.set(targetJavaVersion)
+    }
+}
+
+
+static def formatAsBadgeSafe(var val) {
+    if(!(val instanceof String))
+        return val
+
+    // Badges break if hyphens are present.
+    return ((String) val).replaceAll("[- /]", "_")
+}
+
+tasks.register('update-doc-templates', Copy) {
+    group = "squee-gradle"
+    description = "Takes documents from a folder, expands any template variables, and then copies them to the root."
+    doNotTrackState("Stops gradle from screaming - It doesn't let files get copied to the root if tracking state.")
+
+    Map filteredSrc = project.properties.collectEntries {
+        k, v -> [(k): formatAsBadgeSafe(v) ]
+    }
+
+    from "/template_docs"
+
+    into "/"
+    include "**"
+    exclude "media/**"
+
+    expand filteredSrc
+}
