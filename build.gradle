@@ -29,13 +29,17 @@ repositories {
         name = "mojang"
         url = 'https://libraries.minecraft.net/'
     }
+    maven {
+        name = "command-api"
+        url = "https://repo.codemc.org/repository/maven-public/"
+    }
 }
 
 
 dependencies {
     paperweight.paperDevBundle("1.20.2-R0.1-SNAPSHOT")
 
-    implementation "me.lucko:commodore:${project.properties.lucko_command_api}"
+    implementation "dev.jorel:commandapi-bukkit-shade:9.2.0"
 }
 
 shadowJar {
@@ -44,7 +48,7 @@ shadowJar {
     }
 
     // Shade in command api and avoid conflicts :)
-    relocate 'me.lucko.commodore', 'me.squeeglii.plugin.eventfw.commodore'
+    relocate 'dev.jorel.commandapi', 'me.squeeglii.plugin.eventfw.commandapi'
 }
 
 processResources {

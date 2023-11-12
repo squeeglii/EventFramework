@@ -6,12 +6,3 @@ api-version: '${minecraft_version}'
 
 authors: [ 'Squeeglii' ]
 description: Adds tools for hosting in-world events in Minecraft.
-
-
-commands:
-  event:
-    description: "Handles the creation and management of events"
-    permission: "eventfw.manage"
-  join:
-    description: "Lets you join events"
-    permission: "eventfw.participate"

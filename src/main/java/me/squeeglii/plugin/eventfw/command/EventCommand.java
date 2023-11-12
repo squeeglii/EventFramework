@@ -1,17 +1,9 @@
 package me.squeeglii.plugin.eventfw.command;
 
-import com.mojang.brigadier.CommandDispatcher;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.builder.ArgumentBuilder;
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.builder.RequiredArgumentBuilder;
-import com.mojang.brigadier.context.CommandContextBuilder;
-import com.mojang.brigadier.tree.LiteralCommandNode;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
+import dev.jorel.commandapi.CommandAPICommand;
+import dev.jorel.commandapi.arguments.EntitySelectorArgument;
+import dev.jorel.commandapi.arguments.StringArgument;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class EventCommand extends ConfiguredCommand {
@@ -30,39 +22,54 @@ public class EventCommand extends ConfiguredCommand {
     }
 
     @Override
-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
-        String joinedArgs = String.join(" ", args);
-        String joinedCommand = String.join(" ", label, joinedArgs);
+    public CommandAPICommand buildCommand() {
+        CommandAPICommand cmd = new CommandAPICommand(this.getId());
 
-        boolean isValid = this.configureTabCompletion().isValidInput(joinedCommand);
+        cmd.setSubcommands(List.of(
+                this.getCreateCommand(),
+                this.getConfigCommand(),
+                this.getLaunchCommand(),
+                this.getKickCommand()
+        ));
 
-        sender.sendMessage("IsValid? %s".formatted(isValid));
-
-        return false;
+        return cmd;
     }
 
-    @Override
-    public LiteralCommandNode<?> configureTabCompletion() {
+    protected CommandAPICommand getCreateCommand() {
+        return new CommandAPICommand("create")
+                .withArguments(
+                        new StringArgument("type"),
+                        new StringArgument("id")
+                ).executes((sender, args) -> {
+                    sender.sendMessage("create w/ type: %s, id: %s".formatted(
+                            args.get("type"), args.get("id")
+                    ));
+                });
+    }
 
-        LiteralArgumentBuilder<Object> root = LiteralArgumentBuilder.literal(this.getId());
+    protected CommandAPICommand getConfigCommand() {
+        CommandAPICommand cmd =  new CommandAPICommand("configure")
+                .executes((sender, args) -> {
+                    sender.sendMessage("config w/ ...");
+                });
+        return cmd;
+    }
 
-        LiteralArgumentBuilder<Object> create = LiteralArgumentBuilder.literal("create");
-        LiteralArgumentBuilder<Object> launch = LiteralArgumentBuilder.literal("launch");
-        LiteralArgumentBuilder<Object> config = LiteralArgumentBuilder.literal("config");
-        LiteralArgumentBuilder<Object> kick = LiteralArgumentBuilder.literal("kick");
+    protected CommandAPICommand getLaunchCommand() {
+        return new CommandAPICommand("launch")
+                .withArguments(
+                        new StringArgument("id").setOptional(true)
+                ).executes((sender, args) -> {
+                    sender.sendMessage("launch w/ id: %s".formatted(args.get("id")));
+                });
+    }
 
+    protected CommandAPICommand getKickCommand() {
+        return new CommandAPICommand("kick")
+                .withArguments(
+                        new EntitySelectorArgument.ManyPlayers("player")
+                ).executes((sender, args) -> {
 
-        create.then(RequiredArgumentBuilder.argument("event_type", StringArgumentType.word())
-                .then(RequiredArgumentBuilder.argument("id", StringArgumentType.word())));
-
-        launch.then(RequiredArgumentBuilder.argument("id", StringArgumentType.word()));
-        //kick.then(RequiredArgumentBuilder.argument("id", StringArgumentType.word()));
-
-        return root
-                .then(create)
-                //.then(config)
-                .then(launch)
-                //.then(kick)
-                .build();
+                });
     }
 }

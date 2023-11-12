@@ -1,47 +1,56 @@
 package me.squeeglii.plugin.eventfw;
 
-import me.lucko.commodore.CommodoreProvider;
+import dev.jorel.commandapi.CommandAPI;
+import dev.jorel.commandapi.CommandAPIBukkitConfig;
+import dev.jorel.commandapi.CommandAPIConfig;
 import me.squeeglii.plugin.eventfw.command.ConfiguredCommand;
 import me.squeeglii.plugin.eventfw.command.EventCommand;
 import me.squeeglii.plugin.eventfw.command.JoinCommand;
-import org.bukkit.command.PluginCommand;
 import org.bukkit.plugin.java.JavaPlugin;
+
+import java.util.LinkedList;
+import java.util.List;
 
 public final class EventFramework extends JavaPlugin {
 
     private static EventFramework instance;
 
-    @Override
-    public void onEnable() {
-        instance = this;
+    private final List<ConfiguredCommand> commands = new LinkedList<>();
 
-        this.saveDefaultConfig();
+    @Override
+    public void onLoad() {
+        CommandAPIConfig<?> cmdApiCfg = new CommandAPIBukkitConfig(this);
+        CommandAPI.onLoad(cmdApiCfg);
 
         this.registerCommand(new EventCommand());
         this.registerCommand(new JoinCommand());
     }
 
     @Override
+    public void onEnable() {
+        instance = this;
+        CommandAPI.onEnable();
+
+        this.saveDefaultConfig();
+
+
+    }
+
+    @Override
     public void onDisable() {
         if(instance == this)
             instance = null;
+
+        for(ConfiguredCommand command: this.commands)
+            CommandAPI.unregister(command.getId());
+
+        this.commands.clear();
     }
 
 
     private void registerCommand(ConfiguredCommand command) {
-        PluginCommand cmd = this.getCommand(command.getId());
-
-        if(cmd == null) {
-            this.getLogger().warning("Could not find command '%s'".formatted(command.getId()));
-            return;
-        }
-
-        cmd.setExecutor(command);
-
-        if (CommodoreProvider.isSupported()) {
-            CommodoreProvider.getCommodore(this)
-                             .register(cmd, command.configureTabCompletion());
-        }
+        this.commands.add(command);
+        command.buildCommand().register();
     }
 
 

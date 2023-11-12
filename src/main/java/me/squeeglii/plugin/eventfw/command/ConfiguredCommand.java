@@ -1,11 +1,8 @@
 package me.squeeglii.plugin.eventfw.command;
 
-import com.mojang.brigadier.builder.LiteralArgumentBuilder;
-import com.mojang.brigadier.tree.LiteralCommandNode;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.TabCompleter;
+import dev.jorel.commandapi.CommandAPICommand;
 
-public abstract class ConfiguredCommand implements CommandExecutor {
+public abstract class ConfiguredCommand {
 
     private final String id;
 
@@ -13,7 +10,7 @@ public abstract class ConfiguredCommand implements CommandExecutor {
         this.id = id.trim().toLowerCase();
     }
 
-    public abstract LiteralCommandNode<?> configureTabCompletion();
+    public abstract CommandAPICommand buildCommand();
 
     public String getId() {
         return this.id;
