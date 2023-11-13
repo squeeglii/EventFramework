@@ -23,13 +23,20 @@ public class EventManager {
         this.serverEvent.stop();
     }
 
+    public EventInstance getCurrentEvent() {
+        return this.serverEvent;
+    }
+
 
     public boolean isPlayerParticipating(Player player) {
-        return this.serverEvent != null && //check player list
+        return this.serverEvent != null &&
+               this.serverEvent.getPlayerList()
+                               .contains(player); //check player list
     }
 
     public boolean isEventRunning() {
-        return this.serverEvent != null && this.serverEvent.hasStarted();
+        return this.serverEvent != null &&
+               this.serverEvent.hasStarted();
     }
 
     public static EventManager main() {

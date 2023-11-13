@@ -1,0 +1,7 @@
+
+# Adds a formatted join message just in-case you don't already have that!
+override-join-message: false
+
+# When a player joins the server, should they see a message about a currently
+# running event?
+enable-event-join-push: true
