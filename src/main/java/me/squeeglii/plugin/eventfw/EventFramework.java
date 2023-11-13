@@ -6,6 +6,7 @@ import dev.jorel.commandapi.CommandAPIConfig;
 import me.squeeglii.plugin.eventfw.command.ConfiguredCommand;
 import me.squeeglii.plugin.eventfw.command.EventCommand;
 import me.squeeglii.plugin.eventfw.command.JoinCommand;
+import me.squeeglii.plugin.eventfw.session.EventManager;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.LinkedList;
@@ -16,6 +17,9 @@ public final class EventFramework extends JavaPlugin {
     private static EventFramework instance;
 
     private final List<ConfiguredCommand> commands = new LinkedList<>();
+
+    private EventManager sessionTracker;
+
 
     @Override
     public void onLoad() {
@@ -33,7 +37,7 @@ public final class EventFramework extends JavaPlugin {
 
         this.saveDefaultConfig();
 
-
+        this.sessionTracker = new EventManager();
     }
 
     @Override
@@ -54,6 +58,9 @@ public final class EventFramework extends JavaPlugin {
     }
 
 
+    public EventManager getEventManager() {
+        return this.sessionTracker;
+    }
 
     public static EventFramework plugin() {
         return instance;

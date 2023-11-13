@@ -5,8 +5,13 @@ import org.bukkit.entity.Player;
 
 public class EventInstance {
 
+    private boolean hasStarted;
 
     private WorldBorder areaBounds;
+
+    public EventInstance() {
+        this.hasStarted = false;
+    }
 
 
     public boolean offerPlayer(Player player) {
@@ -23,6 +28,17 @@ public class EventInstance {
     public boolean removePlayer(Player player) {
         player.setWorldBorder(null);
         return true;
+    }
+
+    public void stop() {
+        if(!this.hasStarted) return;
+
+        this.hasStarted = false;
+    }
+
+
+    public boolean hasStarted() {
+        return this.hasStarted;
     }
 
 }
