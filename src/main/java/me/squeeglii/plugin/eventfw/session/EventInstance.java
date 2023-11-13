@@ -28,6 +28,7 @@ public class EventInstance {
     // configuration
     private String name;
     private String description;
+    private int playerLimit; // Advisory -- /join will stop working but plugins can still force add players.
     private WorldBorder areaBounds;
 
 
@@ -70,6 +71,28 @@ public class EventInstance {
         this.hasStarted = false;
     }
 
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public void setPlayerLimit(int playerLimit) {
+        this.playerLimit = playerLimit;
+    }
+
+    public void setAreaBounds(WorldBorder areaBounds) {
+        this.areaBounds = areaBounds;
+
+        // Update world border for all participants if the event has already started.
+        if(!this.hasStarted()) return;
+
+        for(Player player: this.playerList) {
+            player.setWorldBorder(this.areaBounds);
+        }
+    }
 
     // What to show players when they join the server if this instance
     // is running.

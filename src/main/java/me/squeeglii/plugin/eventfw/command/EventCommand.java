@@ -1,25 +1,27 @@
 package me.squeeglii.plugin.eventfw.command;
 
 import dev.jorel.commandapi.CommandAPICommand;
-import dev.jorel.commandapi.arguments.ArgumentSuggestions;
-import dev.jorel.commandapi.arguments.EntitySelectorArgument;
-import dev.jorel.commandapi.arguments.StringArgument;
+import dev.jorel.commandapi.arguments.*;
+import dev.jorel.commandapi.wrappers.Location2D;
 import me.squeeglii.plugin.eventfw.TextUtil;
+import me.squeeglii.plugin.eventfw.config.data.Key;
 import me.squeeglii.plugin.eventfw.session.EventInstance;
 import me.squeeglii.plugin.eventfw.session.EventManager;
 import me.squeeglii.plugin.eventfw.session.EventType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Bukkit;
+import org.bukkit.WorldBorder;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Consumer;
 
 public class EventCommand extends ConfiguredCommand {
 
-    private static final String[] SUB_COMMANDS = new String[] { "create", "configure", "launch", "kick" };
-
-    // /event create <EventType: type> <string: id>
+    // /event new <EventType: type> <string: id>
     // /event configure <name|description|max_players>
 
     // /event launch [id]     -- if no id provided, launch the most recent event created.
@@ -94,11 +96,11 @@ public class EventCommand extends ConfiguredCommand {
     }
 
     protected CommandAPICommand getConfigCommand() {
-        CommandAPICommand cmd =  new CommandAPICommand("configure")
-                .executes((sender, args) -> {
-
-                });
-        return cmd;
+        return new CommandAPICommand("configure")
+                .withSubcommand(this.stringSetter("name", EventManager.main().getCurrentEvent()::setName))
+                .withSubcommand(this.stringSetter("description", EventManager.main().getCurrentEvent()::setDescription))
+                .withSubcommand(this.intSetter("player_limit", EventManager.main().getCurrentEvent()::setPlayerLimit))
+                .withSubcommand(this.borderSetter("border", EventManager.main().getCurrentEvent()::setAreaBounds));
     }
 
     protected CommandAPICommand getLaunchCommand() {
@@ -116,5 +118,103 @@ public class EventCommand extends ConfiguredCommand {
                 .executes((sender, args) -> {
 
                 });
+    }
+
+
+    private CommandAPICommand intSetter(String name, Consumer<Integer> setter) {
+        return new CommandAPICommand(name)
+                .withArguments(new IntegerArgument("value").setOptional(false))
+                .executes((sender, args) -> {
+                    if(EventManager.main().getCurrentEvent() == null) {
+                        this.errorBecauseNoEvent(sender);
+                        return;
+                    }
+
+                    Integer value = (Integer) args.get("value");
+
+                    if(value == null) {
+                        this.errorBecause(sender, "Invalid value!");
+                        return;
+                    }
+
+                    setter.accept(value);
+                    sender.sendMessage(TextUtil.message("Updated '%s' to '%s'!".formatted(name, value)));
+                });
+    }
+
+    private CommandAPICommand stringSetter(String name, Consumer<String> setter) {
+        return new CommandAPICommand(name)
+                .withArguments(new GreedyStringArgument("value").setOptional(false))
+                .executes((sender, args) -> {
+                    if(EventManager.main().getCurrentEvent() == null) {
+                        this.errorBecauseNoEvent(sender);
+                        return;
+                    }
+
+                    String value = (String) args.get("value");
+
+                    if(value == null) {
+                        this.errorBecause(sender, "Invalid value!");
+                        return;
+                    }
+
+                    setter.accept(value);
+                    sender.sendMessage(TextUtil.message("Updated '%s' to '%s'!".formatted(name, value)));
+                });
+    }
+
+    private CommandAPICommand borderSetter(String name, Consumer<WorldBorder> setter) {
+        return new CommandAPICommand(name)
+                .withArguments(
+                        new Location2DArgument("center").setOptional(false),
+                        new DoubleArgument("diameter").setOptional(false)
+                )
+                .executes((sender, args) -> {
+                    if(EventManager.main().getCurrentEvent() == null) {
+                        this.errorBecauseNoEvent(sender);
+                        return;
+                    }
+
+                    Location2D center = (Location2D) args.get("center");
+                    Double diameter = (Double) args.get("diameter");
+
+                    WorldBorder vWorldBorder = Bukkit.createWorldBorder();
+
+                    if(center == null) {
+                        this.errorBecause(sender, "Invalid border center co-ordinates!");
+                        return;
+                    }
+
+                    vWorldBorder.setCenter(center);
+
+                    if(diameter == null || diameter <= 1 || diameter >= vWorldBorder.getMaxSize()) {
+                        this.errorBecause(sender, "Invalid border size!");
+                        return;
+                    }
+
+                    vWorldBorder.setSize(diameter);
+
+                    setter.accept(vWorldBorder);
+                    sender.sendMessage(TextUtil.message("Updated '%s'!".formatted(name)));
+                });
+    }
+
+
+    private void errorBecauseNoEvent(CommandSender sender) {
+        Component component = Component.text(
+                "There is no event currently running / or waiting to be run! Create one with /event new",
+                NamedTextColor.RED
+        );
+
+        sender.sendMessage(component);
+    }
+
+    private void errorBecause(CommandSender sender, String message) {
+        Component component = Component.text(
+                message,
+                NamedTextColor.RED
+        );
+
+        sender.sendMessage(component);
     }
 }
