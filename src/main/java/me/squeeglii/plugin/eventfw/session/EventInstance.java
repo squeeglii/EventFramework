@@ -11,20 +11,24 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.Location;
+import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.bukkit.WorldBorder;
 import org.bukkit.entity.Player;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.scheduler.BukkitTask;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
-public class EventInstance {
+public abstract class EventInstance implements EventAPI {
 
     // activity
     private boolean hasStarted;
 
-    private Set<Player> playerList;
+    private final Set<Player> playerList;
+    private World world;
+    private BukkitTask tickTask;
 
 
     // configuration
@@ -33,6 +37,8 @@ public class EventInstance {
     private int playerLimit; // Advisory -- /join will stop working but plugins can still force add players.
     private WorldBorder areaBounds;
     private boolean shouldAnnounceEvent;
+
+    private NamespacedKey worldId;
 
 
     public EventInstance() {
@@ -47,25 +53,42 @@ public class EventInstance {
         this.areaBounds = null;
 
         this.shouldAnnounceEvent = true;
+
+        this.worldId = null;
     }
 
 
-    public void start() {
+    public final void start() {
         if(this.hasStarted)
             return;
 
+        this.world = this.worldId == null
+                ? EventFramework.plugin().getServer().getWorlds().get(0)
+                : EventFramework.plugin().getServer().getWorld(this.worldId);
+
+
+
+        this.onStart();
+
+        this.tickTask = EventFramework.plugin()
+                .getServer()
+                .getScheduler()
+                .runTaskTimer(EventFramework.plugin(), this::onTick, 1, 1);
 
         this.hasStarted = true;
     }
 
-    public void stop() {
+    public final void stop() {
         if(!this.hasStarted) return;
+
+        this.tickTask.cancel();
+        this.onStop();
 
         this.hasStarted = false;
     }
 
     // Safer method to add players - does more checks & gives a more detailed response
-    public EventJoinResult offerPlayer(Player player) {
+    public final EventJoinResult offerPlayer(Player player) {
         if(!this.hasStarted)
             return EventJoinResult.EVENT_HAS_NOT_STARTED;
 
@@ -74,6 +97,9 @@ public class EventInstance {
 
         if(this.playerList.size() >= this.playerLimit && !player.hasPermission(Permission.BYPASS_PLAYER_LIMIT))
             return EventJoinResult.EVENT_FULL;
+
+        if(!this.onPlayerJoinTest(player))
+            return EventJoinResult.EVENT_IMPL_DENIED;
 
         try {
             return this.addPlayer(player)
@@ -87,7 +113,7 @@ public class EventInstance {
     }
 
     // Attempts to add a player to the event - only fails if they're already in it.
-    public boolean addPlayer(Player player) {
+    public final boolean addPlayer(Player player) {
         if(!this.hasStarted)
             return false;
 
@@ -95,19 +121,35 @@ public class EventInstance {
             return false;
 
         if(this.areaBounds != null) {
+            Location center = this.areaBounds.getCenter();
+            EventFramework.plugin().getServer().getWorlds();
+
+            int blockX = center.getBlockX();
+            int blockZ = center.getBlockZ();
+
+            int spawnY = this.world.getHighestBlockYAt(blockX, blockZ);
+            double spawnX = center.getBlockX() + 0.5;
+            double spawnZ = blockZ + 0.5;
+            Location newHighestCenter = new Location(this.world, spawnX, spawnY, spawnZ);
+
+            player.teleport(newHighestCenter, PlayerTeleportEvent.TeleportCause.PLUGIN);
             player.setWorldBorder(this.areaBounds);
         }
 
-
+        this.playerList.add(player);
+        this.onPlayerAdd(player);
         return true;
     }
 
     // Attempts to remove a player from the event - only fails if they're not in it.
-    public boolean removePlayer(Player player) {
+    public final boolean removePlayer(Player player) {
         if(!this.playerList.contains(player))
             return false;
 
         player.setWorldBorder(null);
+
+        this.onPlayerLeave(player);
+        this.playerList.remove(player);
         return true;
     }
 
@@ -139,9 +181,16 @@ public class EventInstance {
         this.shouldAnnounceEvent = shouldAnnounceEvent;
     }
 
+    public void setHostingWorldId(NamespacedKey worldId) {
+        this.worldId = worldId;
+    }
+
     // What to show players when they join the server if this instance
     // is running.
     public Optional<Component> getJoinHint() {
+        if(!this.shouldAnnounceEvent)
+            return Optional.empty();
+
         return Optional.of(Component.join(
                 JoinConfiguration.separator(Component.text(" ")),
                 Component.text("E | ").color(TextColor.color(TextUtil.BRANDING)),

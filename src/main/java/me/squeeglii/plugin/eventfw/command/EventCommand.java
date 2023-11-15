@@ -12,6 +12,8 @@ import me.squeeglii.plugin.eventfw.session.EventType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
+import org.bukkit.NamespacedKey;
+import org.bukkit.World;
 import org.bukkit.WorldBorder;
 import org.bukkit.command.CommandSender;
 
@@ -103,7 +105,8 @@ public class EventCommand extends ConfiguredCommand {
                 .withSubcommand(this.stringSetter("description", EventManager.main().getCurrentEvent()::setDescription))
                 .withSubcommand(this.intSetter("player_limit", EventManager.main().getCurrentEvent()::setPlayerLimit))
                 .withSubcommand(this.borderSetter("border", EventManager.main().getCurrentEvent()::setAreaBounds))
-                .withSubcommand(this.boolSetter("announce_event_start", EventManager.main().getCurrentEvent()::setShouldAnnounceEvent));
+                .withSubcommand(this.boolSetter("announce_event_start", EventManager.main().getCurrentEvent()::setShouldAnnounceEvent))
+                .withSubcommand(this.worldSetter("dimension", EventManager.main().getCurrentEvent()::setHostingWorldId));
     }
 
     protected CommandAPICommand getLaunchCommand() {
@@ -232,6 +235,22 @@ public class EventCommand extends ConfiguredCommand {
                     setter.accept(vWorldBorder);
                     sender.sendMessage(TextUtil.message("Updated '%s'!".formatted(name)));
                 });
+    }
+
+    private CommandAPICommand worldSetter(String name, Consumer<NamespacedKey> setter) {
+        CommandAPICommand command = new CommandAPICommand(name);
+
+        for(World world: EventFramework.plugin().getServer().getWorlds()) {
+            NamespacedKey val = world.getKey();
+            String strVal = val.asString();
+
+            command.withSubcommand(new CommandAPICommand(strVal).executes((sender, args) -> {
+                setter.accept(val);
+                sender.sendMessage(TextUtil.message("Updated '%s' to '%s'!".formatted(name, strVal)));
+            }));
+        }
+
+        return command;
     }
 
 

@@ -1,6 +1,7 @@
 package me.squeeglii.plugin.eventfw.config.data;
 
 import me.squeeglii.plugin.eventfw.config.Checker;
+
 import java.util.Objects;
 
 public class Key<T> {
@@ -24,8 +25,7 @@ public class Key<T> {
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
-        if (!(o instanceof Key<?>)) return false;
-        Key<?> key1 = (Key<?>) o;
+        if (!(o instanceof Key<?> key1)) return false;
         return Objects.equals(key, key1.key);
     }
 
