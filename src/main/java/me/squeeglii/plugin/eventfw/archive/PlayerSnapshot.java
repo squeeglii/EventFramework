@@ -1,6 +1,8 @@
 package me.squeeglii.plugin.eventfw.archive;
 
+import net.minecraft.world.level.block.Blocks;
 import org.bukkit.GameMode;
+import org.bukkit.Material;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -81,6 +83,10 @@ public class PlayerSnapshot {
 
         ItemStack[] oldContents = inventory.getContents();
         ItemStack[] newContents = Arrays.stream(oldContents)
+                .map(stack -> stack == null
+                        ? new ItemStack(Material.AIR, 1)
+                        : stack
+                )
                 .map(ItemStack::new)
                 .toArray(ItemStack[]::new);
 
@@ -89,6 +95,10 @@ public class PlayerSnapshot {
 
     private void restoreInventoryFor(Player player) {
         ItemStack[] copiedContents = Arrays.stream(this.items)
+                .map(stack -> stack == null
+                        ? new ItemStack(Material.AIR, 1)
+                        : stack
+                )
                 .map(ItemStack::new)
                 .toArray(ItemStack[]::new);
 

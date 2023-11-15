@@ -107,7 +107,7 @@ public abstract class EventInstance implements EventAPI {
                     : EventJoinResult.UNHANDLED_FAILURE;
 
         } catch (Exception err) {
-            EventFramework.plugin().getLogger().throwing("EventInstance", "offerPlayer", err);
+            err.printStackTrace();
             return EventJoinResult.ERROR;
         }
     }
