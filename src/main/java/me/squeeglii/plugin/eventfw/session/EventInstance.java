@@ -11,10 +11,7 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.Style;
 import net.kyori.adventure.text.format.TextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.Location;
-import org.bukkit.NamespacedKey;
-import org.bukkit.World;
-import org.bukkit.WorldBorder;
+import org.bukkit.*;
 import org.bukkit.entity.Player;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.scheduler.BukkitTask;
@@ -130,7 +127,7 @@ public abstract class EventInstance implements EventAPI {
             int blockX = center.getBlockX();
             int blockZ = center.getBlockZ();
 
-            double spawnY = this.world.getHighestBlockYAt(blockX, blockZ) + 1.1;
+            double spawnY = this.world.getHighestBlockYAt(blockX, blockZ, HeightMap.MOTION_BLOCKING) + 1.1;
             double spawnX = center.getBlockX() + 0.5;
             double spawnZ = blockZ + 0.5;
             Location newHighestCenter = new Location(this.world, spawnX, spawnY, spawnZ);
@@ -239,6 +236,11 @@ public abstract class EventInstance implements EventAPI {
 
     public boolean shouldAnnounceEvent() {
         return this.shouldAnnounceEvent;
+    }
+
+
+    public World getWorld() {
+        return this.world;
     }
 
     public boolean hasStarted() {
