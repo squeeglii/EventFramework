@@ -40,7 +40,7 @@ public class EventCommand extends ConfiguredCommand {
     public CommandAPICommand buildCommand() {
         CommandAPICommand cmd = new CommandAPICommand(this.getId());
 
-        cmd.withRequirement(sender -> sender.hasPermission(Permission.MANAGE_EVENT));
+        cmd.withPermission(Permission.MANAGE_EVENT);
         cmd.setSubcommands(List.of(
                 this.getCreateCommand(),
                 this.getStopCommand(),
@@ -90,8 +90,14 @@ public class EventCommand extends ConfiguredCommand {
 
     protected CommandAPICommand getStopCommand() {
         return new CommandAPICommand("stop")
-                .withRequirement(sender -> EventManager.main().isEventRunning())
                 .executes((sender, args) -> {
+
+                    if(!EventManager.main().isEventRunning()) {
+                        Component errMsg = Component.text("There are no events currently running!");
+                        sender.sendMessage(errMsg);
+                        return;
+                    }
+
                     EventManager.main().stopCurrentEvent();
 
                     Component component = TextUtil.message("Stopped any running events.");
@@ -111,7 +117,6 @@ public class EventCommand extends ConfiguredCommand {
 
     protected CommandAPICommand getLaunchCommand() {
         return new CommandAPICommand("launch")
-                .withRequirement(sender -> !EventManager.main().isEventRunning())
                 .executes((sender, args) -> {
                     EventInstance event = EventManager.main().getCurrentEvent();
 

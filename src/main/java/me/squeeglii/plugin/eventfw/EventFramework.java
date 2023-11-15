@@ -39,6 +39,10 @@ public final class EventFramework extends JavaPlugin {
     public void onEnable() {
         instance = this; // sanity check?
 
+        this.getServer()
+                .getPluginManager()
+                .registerEvents(new ActivityListener(), this);
+
         CommandAPI.onEnable();
 
         // Needs to be loaded post-world
