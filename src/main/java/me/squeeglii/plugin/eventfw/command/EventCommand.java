@@ -3,8 +3,8 @@ package me.squeeglii.plugin.eventfw.command;
 import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.*;
 import dev.jorel.commandapi.wrappers.Location2D;
+import me.squeeglii.plugin.eventfw.EventFramework;
 import me.squeeglii.plugin.eventfw.TextUtil;
-import me.squeeglii.plugin.eventfw.config.data.Key;
 import me.squeeglii.plugin.eventfw.session.EventInstance;
 import me.squeeglii.plugin.eventfw.session.EventManager;
 import me.squeeglii.plugin.eventfw.session.EventType;
@@ -13,7 +13,6 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.Bukkit;
 import org.bukkit.WorldBorder;
 import org.bukkit.command.CommandSender;
-import org.bukkit.entity.Player;
 
 import java.util.List;
 import java.util.Optional;
@@ -40,8 +39,7 @@ public class EventCommand extends ConfiguredCommand {
                 this.getCreateCommand(),
                 this.getStopCommand(),
                 this.getConfigCommand(),
-                this.getLaunchCommand(),
-                this.getKickCommand()
+                this.getLaunchCommand()
         ));
 
         return cmd;
@@ -100,26 +98,38 @@ public class EventCommand extends ConfiguredCommand {
                 .withSubcommand(this.stringSetter("name", EventManager.main().getCurrentEvent()::setName))
                 .withSubcommand(this.stringSetter("description", EventManager.main().getCurrentEvent()::setDescription))
                 .withSubcommand(this.intSetter("player_limit", EventManager.main().getCurrentEvent()::setPlayerLimit))
-                .withSubcommand(this.borderSetter("border", EventManager.main().getCurrentEvent()::setAreaBounds));
+                .withSubcommand(this.borderSetter("border", EventManager.main().getCurrentEvent()::setAreaBounds))
+                .withSubcommand(this.boolSetter("announce_event_start", EventManager.main().getCurrentEvent()::setShouldAnnounceEvent));
     }
 
     protected CommandAPICommand getLaunchCommand() {
         return new CommandAPICommand("launch")
+                .withRequirement(sender -> !EventManager.main().isEventRunning())
                 .executes((sender, args) -> {
+                    EventInstance event = EventManager.main().getCurrentEvent();
 
+                    if(event == null) {
+                        sender.sendMessage(Component.text("There's no pending events! Create one with /event new.", NamedTextColor.RED));
+                        return;
+                    }
+
+                    if(event.hasStarted()) {
+                        sender.sendMessage(Component.text("This event has already started.", NamedTextColor.RED));
+                        return;
+                    }
+
+                    try {
+                        event.start();
+                    } catch (Exception err) {
+                        sender.sendMessage(Component.text("Something went wrong while starting the event.", NamedTextColor.RED));
+                        EventFramework.plugin().getLogger().throwing("EventCommand", "launch", err);
+                        return;
+                    }
+
+                    Component msg = TextUtil.message("Successfully started the event! Join it with /join.");
+                    sender.sendMessage(msg);
                 });
     }
-
-    protected CommandAPICommand getKickCommand() {
-        return new CommandAPICommand("kick")
-                .withRequirement(sender ->
-                        sender instanceof Player player && EventManager.main().isPlayerParticipating(player))
-                .withArguments(new EntitySelectorArgument.ManyPlayers("player"))
-                .executes((sender, args) -> {
-
-                });
-    }
-
 
     private CommandAPICommand intSetter(String name, Consumer<Integer> setter) {
         return new CommandAPICommand(name)
@@ -131,6 +141,27 @@ public class EventCommand extends ConfiguredCommand {
                     }
 
                     Integer value = (Integer) args.get("value");
+
+                    if(value == null) {
+                        this.errorBecause(sender, "Invalid value!");
+                        return;
+                    }
+
+                    setter.accept(value);
+                    sender.sendMessage(TextUtil.message("Updated '%s' to '%s'!".formatted(name, value)));
+                });
+    }
+
+    private CommandAPICommand boolSetter(String name, Consumer<Boolean> setter) {
+        return new CommandAPICommand(name)
+                .withArguments(new BooleanArgument("value").setOptional(false))
+                .executes((sender, args) -> {
+                    if(EventManager.main().getCurrentEvent() == null) {
+                        this.errorBecauseNoEvent(sender);
+                        return;
+                    }
+
+                    Boolean value = (Boolean) args.get("value");
 
                     if(value == null) {
                         this.errorBecause(sender, "Invalid value!");

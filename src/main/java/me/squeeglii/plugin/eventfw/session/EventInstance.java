@@ -1,5 +1,6 @@
 package me.squeeglii.plugin.eventfw.session;
 
+import me.squeeglii.plugin.eventfw.EventFramework;
 import me.squeeglii.plugin.eventfw.TextUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
@@ -30,6 +31,7 @@ public class EventInstance {
     private String description;
     private int playerLimit; // Advisory -- /join will stop working but plugins can still force add players.
     private WorldBorder areaBounds;
+    private boolean shouldAnnounceEvent;
 
 
     public EventInstance() {
@@ -39,13 +41,57 @@ public class EventInstance {
         this.name = "General Shenanigans!";
         this.description = "...";
 
+        this.playerLimit = 1000;
+
         this.areaBounds = null;
+
+        this.shouldAnnounceEvent = true;
     }
 
 
+    public void start() {
+        if(this.hasStarted)
+            return;
+
+
+        this.hasStarted = true;
+    }
+
+    public void stop() {
+        if(!this.hasStarted) return;
+
+        this.hasStarted = false;
+    }
+
+    // Safer method to add players - does more checks & gives a more detailed response
+    public EventJoinResult offerPlayer(Player player) {
+        if(!this.hasStarted)
+            return EventJoinResult.EVENT_HAS_NOT_STARTED;
+
+        if(this.playerList.contains(player))
+            return EventJoinResult.PLAYER_ALREADY_IN_EVENT;
+
+        //TODO: Add bypass for op'ed players.
+        if(this.playerList.size() >= this.playerLimit)
+            return EventJoinResult.EVENT_FULL;
+
+        try {
+            return this.addPlayer(player)
+                    ? EventJoinResult.SUCCESS
+                    : EventJoinResult.UNHANDLED_FAILURE;
+
+        } catch (Exception err) {
+            EventFramework.plugin().getLogger().throwing("EventInstance", "offerPlayer", err);
+            return EventJoinResult.ERROR;
+        }
+    }
+
     // Attempts to add a player to the event - only fails if they're already in it.
     public boolean addPlayer(Player player) {
-        if(this.playerList.contains(player))
+        if(!this.hasStarted)
+            return false;
+
+        if(!this.playerList.contains(player))
             return false;
 
         if(this.areaBounds != null) {
@@ -65,11 +111,6 @@ public class EventInstance {
         return true;
     }
 
-    public void stop() {
-        if(!this.hasStarted) return;
-
-        this.hasStarted = false;
-    }
 
     public void setName(String name) {
         this.name = name;
@@ -92,6 +133,10 @@ public class EventInstance {
         for(Player player: this.playerList) {
             player.setWorldBorder(this.areaBounds);
         }
+    }
+
+    public void setShouldAnnounceEvent(boolean shouldAnnounceEvent) {
+        this.shouldAnnounceEvent = shouldAnnounceEvent;
     }
 
     // What to show players when they join the server if this instance
@@ -122,6 +167,26 @@ public class EventInstance {
 
     public Set<Player> getPlayerList() {
         return Collections.unmodifiableSet(this.playerList);
+    }
+
+    public String getName() {
+        return this.name;
+    }
+
+    public String getDescription() {
+        return this.description;
+    }
+
+    public WorldBorder getBorder() {
+        return this.areaBounds;
+    }
+
+    public int getPlayerLimit() {
+        return this.playerLimit;
+    }
+
+    public boolean shouldAnnounceEvent() {
+        return this.shouldAnnounceEvent;
     }
 
     public boolean hasStarted() {
