@@ -4,6 +4,7 @@ import dev.jorel.commandapi.CommandAPICommand;
 import dev.jorel.commandapi.arguments.*;
 import dev.jorel.commandapi.wrappers.Location2D;
 import me.squeeglii.plugin.eventfw.EventFramework;
+import me.squeeglii.plugin.eventfw.Permission;
 import me.squeeglii.plugin.eventfw.TextUtil;
 import me.squeeglii.plugin.eventfw.session.EventInstance;
 import me.squeeglii.plugin.eventfw.session.EventManager;
@@ -20,6 +21,8 @@ import java.util.function.Consumer;
 
 public class EventCommand extends ConfiguredCommand {
 
+    public static final String MANAGE_EVENT = "eventfw.manage";
+
     // /event new <EventType: type> <string: id>
     // /event configure <name|description|max_players>
 
@@ -35,6 +38,7 @@ public class EventCommand extends ConfiguredCommand {
     public CommandAPICommand buildCommand() {
         CommandAPICommand cmd = new CommandAPICommand(this.getId());
 
+        cmd.withRequirement(sender -> sender.hasPermission(Permission.MANAGE_EVENT));
         cmd.setSubcommands(List.of(
                 this.getCreateCommand(),
                 this.getStopCommand(),

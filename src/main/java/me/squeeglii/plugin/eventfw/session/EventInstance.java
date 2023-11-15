@@ -1,6 +1,7 @@
 package me.squeeglii.plugin.eventfw.session;
 
 import me.squeeglii.plugin.eventfw.EventFramework;
+import me.squeeglii.plugin.eventfw.Permission;
 import me.squeeglii.plugin.eventfw.TextUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
@@ -71,8 +72,7 @@ public class EventInstance {
         if(this.playerList.contains(player))
             return EventJoinResult.PLAYER_ALREADY_IN_EVENT;
 
-        //TODO: Add bypass for op'ed players.
-        if(this.playerList.size() >= this.playerLimit)
+        if(this.playerList.size() >= this.playerLimit && !player.hasPermission(Permission.BYPASS_PLAYER_LIMIT))
             return EventJoinResult.EVENT_FULL;
 
         try {
