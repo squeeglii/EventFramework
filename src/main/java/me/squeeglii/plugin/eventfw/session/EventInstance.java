@@ -84,6 +84,9 @@ public abstract class EventInstance implements EventAPI {
         this.tickTask.cancel();
         this.onStop();
 
+        for(Player player: new HashSet<>(this.playerList))
+            this.removePlayer(player);
+
         this.hasStarted = false;
     }
 
@@ -117,7 +120,7 @@ public abstract class EventInstance implements EventAPI {
         if(!this.hasStarted)
             return false;
 
-        if(!this.playerList.contains(player))
+        if(this.playerList.contains(player))
             return false;
 
         if(this.areaBounds != null) {
@@ -127,7 +130,7 @@ public abstract class EventInstance implements EventAPI {
             int blockX = center.getBlockX();
             int blockZ = center.getBlockZ();
 
-            int spawnY = this.world.getHighestBlockYAt(blockX, blockZ);
+            double spawnY = this.world.getHighestBlockYAt(blockX, blockZ) + 1.1;
             double spawnX = center.getBlockX() + 0.5;
             double spawnZ = blockZ + 0.5;
             Location newHighestCenter = new Location(this.world, spawnX, spawnY, spawnZ);

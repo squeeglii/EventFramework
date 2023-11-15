@@ -101,12 +101,12 @@ public class EventCommand extends ConfiguredCommand {
 
     protected CommandAPICommand getConfigCommand() {
         return new CommandAPICommand("configure")
-                .withSubcommand(this.stringSetter("name", EventManager.main().getCurrentEvent()::setName))
-                .withSubcommand(this.stringSetter("description", EventManager.main().getCurrentEvent()::setDescription))
-                .withSubcommand(this.intSetter("player_limit", EventManager.main().getCurrentEvent()::setPlayerLimit))
-                .withSubcommand(this.borderSetter("border", EventManager.main().getCurrentEvent()::setAreaBounds))
-                .withSubcommand(this.boolSetter("announce_event_start", EventManager.main().getCurrentEvent()::setShouldAnnounceEvent))
-                .withSubcommand(this.worldSetter("dimension", EventManager.main().getCurrentEvent()::setHostingWorldId));
+                .withSubcommand(this.stringSetter("name", val -> EventManager.main().getCurrentEvent().setName(val)))
+                .withSubcommand(this.stringSetter("description", val -> EventManager.main().getCurrentEvent().setDescription(val)))
+                .withSubcommand(this.intSetter("player_limit", val -> EventManager.main().getCurrentEvent().setPlayerLimit(val)))
+                .withSubcommand(this.borderSetter("border", val -> EventManager.main().getCurrentEvent().setAreaBounds(val)))
+                .withSubcommand(this.boolSetter("announce_event_start", val -> EventManager.main().getCurrentEvent().setShouldAnnounceEvent(val)))
+                .withSubcommand(this.worldSetter("dimension", val -> EventManager.main().getCurrentEvent().setHostingWorldId(val)));
     }
 
     protected CommandAPICommand getLaunchCommand() {

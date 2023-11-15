@@ -14,7 +14,7 @@ import java.util.List;
 
 public final class EventFramework extends JavaPlugin {
 
-    private static EventFramework instance;
+    private static EventFramework instance = null;
 
     private final List<ConfiguredCommand> commands = new LinkedList<>();
 
@@ -23,32 +23,37 @@ public final class EventFramework extends JavaPlugin {
 
     @Override
     public void onLoad() {
+        instance = this;
+
+        this.saveDefaultConfig();
+
+        this.sessionTracker = new EventManager(); // commands need access
+
         CommandAPIConfig<?> cmdApiCfg = new CommandAPIBukkitConfig(this);
         CommandAPI.onLoad(cmdApiCfg);
 
-        this.registerCommand(new EventCommand());
         this.registerCommand(new JoinCommand());
     }
 
     @Override
     public void onEnable() {
-        instance = this;
+        instance = this; // sanity check?
+
         CommandAPI.onEnable();
 
-        this.saveDefaultConfig();
-
-        this.sessionTracker = new EventManager();
+        // Needs to be loaded post-world
+        this.registerCommand(new EventCommand());
     }
 
     @Override
     public void onDisable() {
-        if(instance == this)
-            instance = null;
-
         for(ConfiguredCommand command: this.commands)
             CommandAPI.unregister(command.getId());
 
         this.commands.clear();
+
+        if(instance == this)
+            instance = null;
     }
 
 
