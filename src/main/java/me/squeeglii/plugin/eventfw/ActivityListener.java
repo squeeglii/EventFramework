@@ -65,12 +65,11 @@ public class ActivityListener implements Listener {
     }
 
     @EventHandler
-    private void onTeleport(EntityTeleportEvent event) {
-        Location from = event.getFrom();
+    private void onTeleport(PlayerTeleportEvent event) {
         Location to = event.getTo();
+        Location from = event.getFrom();
 
-        if(!(event.getEntity() instanceof Player player)) return;
-        if(!EventManager.main().isPlayerParticipating(player)) return;
+        if(!EventManager.main().isPlayerParticipating(event.getPlayer())) return;
 
         EventInstance e = EventManager.main().getCurrentEvent();
 
@@ -83,17 +82,11 @@ public class ActivityListener implements Listener {
             return;
 
         // Ignore leaving players
-        if(e.isPlayerLeaving(player))
+        if(e.isPlayerLeaving(event.getPlayer()))
             return;
-
-        if(to == null) {
-            player.sendMessage(Component.text("Blocked your teleport! Please leave the event first.", NamedTextColor.RED));
-            event.setCancelled(true);
-            return;
-        }
 
         if(to.getWorld() != from.getWorld()) {
-            player.sendMessage(Component.text("Blocked your teleport! You cannot switch dimensions while in an event.", NamedTextColor.RED));
+            event.getPlayer().sendMessage(Component.text("Blocked your teleport! You cannot switch dimensions while in an event.", NamedTextColor.RED));
             event.setCancelled(true);
         }
     }
