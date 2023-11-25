@@ -33,10 +33,11 @@ public abstract class EventInstance implements EventAPI {
     private String name;
     private String description;
     private int playerLimit; // Advisory -- /join will stop working but plugins can still force add players.
-    private WorldBorder areaBounds;
-    private Location spawnpoint;
     private boolean shouldAnnounceEvent;
     private boolean preventDimensionSwitches;
+
+    private WorldBorder areaBounds;
+    private Location spawnpoint;
 
     private NamespacedKey worldId;
 
@@ -48,17 +49,16 @@ public abstract class EventInstance implements EventAPI {
 
         this.name = "General Shenanigans!";
         this.description = "...";
-
         this.playerLimit = 1000;
+        this.shouldAnnounceEvent = true;
+        this.preventDimensionSwitches = true;
 
         this.areaBounds = null;
-
-        this.shouldAnnounceEvent = true;
-
         this.spawnpoint = null;
+        this.worldId = null;
 
         this.world = null;
-        this.worldId = null;
+        this.tickTask = null;
     }
 
 
@@ -69,8 +69,6 @@ public abstract class EventInstance implements EventAPI {
         this.world = this.worldId == null
                 ? EventFramework.plugin().getServer().getWorlds().get(0)
                 : EventFramework.plugin().getServer().getWorld(this.worldId);
-
-
 
         this.onStart();
 

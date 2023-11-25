@@ -7,6 +7,8 @@ import me.squeeglii.plugin.eventfw.command.ConfiguredCommand;
 import me.squeeglii.plugin.eventfw.command.EventCommand;
 import me.squeeglii.plugin.eventfw.command.JoinCommand;
 import me.squeeglii.plugin.eventfw.session.EventManager;
+import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.LinkedList;
@@ -73,6 +75,14 @@ public final class EventFramework extends JavaPlugin {
 
     public static EventFramework plugin() {
         return instance;
+    }
+
+    public void registerListener(Listener listener) {
+        this.getServer().getPluginManager().registerEvents(listener, this);
+    }
+
+    public void unregisterListener(Listener listener) {
+        HandlerList.unregisterAll(listener);
     }
 
 }
