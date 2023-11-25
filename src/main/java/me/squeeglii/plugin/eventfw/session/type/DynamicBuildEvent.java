@@ -34,10 +34,13 @@ public class DynamicBuildEvent extends EventInstance {
     }
 
     @Override
-    public void onPlayerAdd(Player player) {
+    public void onPrePlayerAdd(Player player) {
         PlayerSnapshot snapshot = new PlayerSnapshot(player);
         this.playerStates.put(player.getUniqueId(), snapshot);
+    }
 
+    @Override
+    public void onPlayerAdd(Player player) {
         player.getInventory().clear();
         player.setGameMode(GameMode.CREATIVE);
         player.setTotalExperience(0);
@@ -48,26 +51,14 @@ public class DynamicBuildEvent extends EventInstance {
 
     @Override
     public void onPlayerLeave(Player player) {
+        EventFramework.plugin().getLogger().info("dyna build");
         PlayerSnapshot oldSnapshot = this.playerStates.remove(player.getUniqueId());
         oldSnapshot.reapplyTo(player);
-
-        Location playerPos = player.getLocation();
-        double safeY = this.getWorld().getHighestBlockYAt(
-                playerPos.getBlockX(),
-                playerPos.getBlockZ(),
-                HeightMap.MOTION_BLOCKING
-        ) + 1.1f;
-
-        Location safeLocation = new Location(
-                playerPos.getWorld(),
-                playerPos.getBlockX(), safeY, playerPos.getBlockZ(),
-                playerPos.getYaw(), playerPos.getPitch()
-        );
-
         player.setFallDistance(0);
-        player.teleport(safeLocation, PlayerTeleportEvent.TeleportCause.PLUGIN);
 
-        TextUtil.send("Restored your old inventory & placed you somewhere safe.", player);
+        EventFramework.plugin().getLogger().info("reapplied and reset");
+
+        TextUtil.send("Restored your old inventory & placed you back where you left off.", player);
     }
 
     @Override

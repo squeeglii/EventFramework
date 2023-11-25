@@ -24,6 +24,7 @@ public abstract class EventInstance implements EventAPI {
     private boolean hasStarted;
 
     private final Set<Player> playerList;
+    private final Set<Player> leavingPlayers;
     private World world;
     private BukkitTask tickTask;
 
@@ -33,7 +34,9 @@ public abstract class EventInstance implements EventAPI {
     private String description;
     private int playerLimit; // Advisory -- /join will stop working but plugins can still force add players.
     private WorldBorder areaBounds;
+    private Location spawnpoint;
     private boolean shouldAnnounceEvent;
+    private boolean preventDimensionSwitches;
 
     private NamespacedKey worldId;
 
@@ -41,6 +44,7 @@ public abstract class EventInstance implements EventAPI {
     public EventInstance() {
         this.hasStarted = false;
         this.playerList = new HashSet<>();
+        this.leavingPlayers = new HashSet<>();
 
         this.name = "General Shenanigans!";
         this.description = "...";
@@ -51,6 +55,9 @@ public abstract class EventInstance implements EventAPI {
 
         this.shouldAnnounceEvent = true;
 
+        this.spawnpoint = null;
+
+        this.world = null;
         this.worldId = null;
     }
 
@@ -77,14 +84,13 @@ public abstract class EventInstance implements EventAPI {
 
     public final void stop() {
         if(!this.hasStarted) return;
+        this.hasStarted = false;
 
         this.tickTask.cancel();
         this.onStop();
 
         for(Player player: new HashSet<>(this.playerList))
             this.removePlayer(player);
-
-        this.hasStarted = false;
     }
 
     // Safer method to add players - does more checks & gives a more detailed response
@@ -120,19 +126,30 @@ public abstract class EventInstance implements EventAPI {
         if(this.playerList.contains(player))
             return false;
 
+        this.onPrePlayerAdd(player);
+
+        Location spawn = this.getSpawn();
+
+        if(spawn != null) {
+            player.teleport(spawn, PlayerTeleportEvent.TeleportCause.PLUGIN);
+        }
+
         if(this.areaBounds != null) {
-            Location center = this.areaBounds.getCenter();
-            EventFramework.plugin().getServer().getWorlds();
 
-            int blockX = center.getBlockX();
-            int blockZ = center.getBlockZ();
+            // Fallback spawnpoint.
+            if(this.spawnpoint == null) {
+                Location center = this.areaBounds.getCenter();
+                int blockX = center.getBlockX();
+                int blockZ = center.getBlockZ();
 
-            double spawnY = this.world.getHighestBlockYAt(blockX, blockZ, HeightMap.MOTION_BLOCKING) + 1.1;
-            double spawnX = center.getBlockX() + 0.5;
-            double spawnZ = blockZ + 0.5;
-            Location newHighestCenter = new Location(this.world, spawnX, spawnY, spawnZ);
+                double spawnY = this.world.getHighestBlockYAt(blockX, blockZ, HeightMap.MOTION_BLOCKING) + 1.1;
+                double spawnX = center.getBlockX() + 0.5;
+                double spawnZ = blockZ + 0.5;
+                Location newHighestCenter = new Location(this.world, spawnX, spawnY, spawnZ);
 
-            player.teleport(newHighestCenter, PlayerTeleportEvent.TeleportCause.PLUGIN);
+                player.teleport(newHighestCenter, PlayerTeleportEvent.TeleportCause.PLUGIN);
+            }
+
             player.setWorldBorder(this.areaBounds);
         }
 
@@ -146,11 +163,19 @@ public abstract class EventInstance implements EventAPI {
         if(!this.playerList.contains(player))
             return false;
 
+        this.leavingPlayers.add(player);
+
         player.setWorldBorder(null);
 
         this.onPlayerLeave(player);
         this.playerList.remove(player);
+        this.leavingPlayers.remove(player);
         return true;
+    }
+
+
+    public boolean isPlayerLeaving(Player player) {
+        return this.leavingPlayers.contains(player);
     }
 
 
@@ -177,12 +202,20 @@ public abstract class EventInstance implements EventAPI {
         }
     }
 
+    public void setSpawn(Location spawnpoint) {
+        this.spawnpoint = spawnpoint;
+    }
+
     public void setShouldAnnounceEvent(boolean shouldAnnounceEvent) {
         this.shouldAnnounceEvent = shouldAnnounceEvent;
     }
 
     public void setHostingWorldId(NamespacedKey worldId) {
         this.worldId = worldId;
+    }
+
+    public void setShouldPreventDimensionSwitches(boolean preventDimensionSwitches) {
+        this.preventDimensionSwitches = preventDimensionSwitches;
     }
 
     // What to show players when they join the server if this instance
@@ -230,6 +263,16 @@ public abstract class EventInstance implements EventAPI {
         return this.areaBounds;
     }
 
+    public Location getSpawn() {
+        return this.spawnpoint == null
+                ? null
+                : new Location(
+                        this.world,
+                        this.spawnpoint.x(), this.spawnpoint.y(), this.spawnpoint.z(),
+                        this.spawnpoint.getYaw(), this.spawnpoint.getPitch()
+                );
+    }
+
     public int getPlayerLimit() {
         return this.playerLimit;
     }
@@ -238,6 +281,9 @@ public abstract class EventInstance implements EventAPI {
         return this.shouldAnnounceEvent;
     }
 
+    public boolean shouldPreventDimensionSwitches() {
+        return this.preventDimensionSwitches;
+    }
 
     public World getWorld() {
         return this.world;

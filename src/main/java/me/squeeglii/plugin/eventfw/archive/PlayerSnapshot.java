@@ -2,9 +2,11 @@ package me.squeeglii.plugin.eventfw.archive;
 
 import net.minecraft.world.level.block.Blocks;
 import org.bukkit.GameMode;
+import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.potion.PotionEffect;
@@ -21,6 +23,8 @@ public class PlayerSnapshot {
     private final int food;
     private final int exp;
 
+    private final Location lastPosition;
+
     private List<PotionEffect> potionEffects;
 
     private ItemStack[] items;
@@ -34,6 +38,12 @@ public class PlayerSnapshot {
         this.health = player.getHealth();
         this.food = player.getFoodLevel();
         this.exp = player.getTotalExperience();
+
+        this.lastPosition = new Location(
+                player.getWorld(),
+                player.getX(), player.getY(), player.getZ(),
+                player.getYaw(), player.getPitch()
+        );
 
         this.savePotionEffects(player);
         this.saveInventory(player);
@@ -51,6 +61,8 @@ public class PlayerSnapshot {
 
         this.restorePotionEffectsFor(player);
         this.restoreInventoryFor(player);
+
+        player.teleport(this.lastPosition, PlayerTeleportEvent.TeleportCause.PLUGIN);
     }
 
 

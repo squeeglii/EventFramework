@@ -13,6 +13,8 @@ public interface EventAPI {
         return true;
     }
 
+    default void onPrePlayerAdd(Player player) { }
+
     void onPlayerAdd(Player player);
 
     void onPlayerLeave(Player player);

@@ -11,11 +11,9 @@ import me.squeeglii.plugin.eventfw.session.EventManager;
 import me.squeeglii.plugin.eventfw.session.EventType;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.Bukkit;
-import org.bukkit.NamespacedKey;
-import org.bukkit.World;
-import org.bukkit.WorldBorder;
+import org.bukkit.*;
 import org.bukkit.command.CommandSender;
+import org.joml.Vector3f;
 
 import java.util.List;
 import java.util.Optional;
@@ -112,7 +110,9 @@ public class EventCommand extends ConfiguredCommand {
                 .withSubcommand(this.intSetter("player_limit", val -> EventManager.main().getCurrentEvent().setPlayerLimit(val)))
                 .withSubcommand(this.borderSetter("border", val -> EventManager.main().getCurrentEvent().setAreaBounds(val)))
                 .withSubcommand(this.boolSetter("announce_event_start", val -> EventManager.main().getCurrentEvent().setShouldAnnounceEvent(val)))
-                .withSubcommand(this.worldSetter("dimension", val -> EventManager.main().getCurrentEvent().setHostingWorldId(val)));
+                .withSubcommand(this.worldSetter("dimension", val -> EventManager.main().getCurrentEvent().setHostingWorldId(val)))
+                .withSubcommand(this.boolSetter("prevent_dimension_switches", val -> EventManager.main().getCurrentEvent().setShouldPreventDimensionSwitches(val)))
+                .withSubcommand(this.locationSetter("spawnpoint", val -> EventManager.main().getCurrentEvent().setSpawn(val)));
     }
 
     protected CommandAPICommand getLaunchCommand() {
@@ -203,6 +203,29 @@ public class EventCommand extends ConfiguredCommand {
 
                     setter.accept(value);
                     sender.sendMessage(TextUtil.message("Updated '%s' to '%s'!".formatted(name, value)));
+                });
+    }
+
+    private CommandAPICommand locationSetter(String name, Consumer<Location> setter) {
+        return new CommandAPICommand(name)
+                .withArguments(new LocationArgument("value").setOptional(false))
+                .executes((sender, args) -> {
+                    if(EventManager.main().getCurrentEvent() == null) {
+                        this.errorBecauseNoEvent(sender);
+                        return;
+                    }
+
+                    Location value = (Location) args.get("value");
+
+                    if(value == null) {
+                        this.errorBecause(sender, "Invalid value!");
+                        return;
+                    }
+
+                    setter.accept(value);
+                    sender.sendMessage(TextUtil.message("Updated '%s' to 'x=%s, y = %s, z=%s'!".formatted(
+                            name, value.x(), value.y(), value.z()
+                    )));
                 });
     }
 
