@@ -105,14 +105,19 @@ public class EventCommand extends ConfiguredCommand {
 
     protected CommandAPICommand getConfigCommand() {
         return new CommandAPICommand("configure")
-                .withSubcommand(this.stringSetter("name", val -> EventManager.main().getCurrentEvent().setName(val)))
-                .withSubcommand(this.stringSetter("description", val -> EventManager.main().getCurrentEvent().setDescription(val)))
-                .withSubcommand(this.intSetter("player_limit", val -> EventManager.main().getCurrentEvent().setPlayerLimit(val)))
-                .withSubcommand(this.borderSetter("border", val -> EventManager.main().getCurrentEvent().setAreaBounds(val)))
-                .withSubcommand(this.boolSetter("announce_event_start", val -> EventManager.main().getCurrentEvent().setShouldAnnounceEvent(val)))
-                .withSubcommand(this.worldSetter("dimension", val -> EventManager.main().getCurrentEvent().setHostingWorldId(val)))
-                .withSubcommand(this.boolSetter("prevent_dimension_switches", val -> EventManager.main().getCurrentEvent().setShouldPreventDimensionSwitches(val)))
-                .withSubcommand(this.locationSetter("spawnpoint", val -> EventManager.main().getCurrentEvent().setSpawn(val)));
+                .withSubcommands(
+                        this.stringSetter("name", val -> EventManager.main().getCurrentEvent().setName(val)),
+                        this.stringSetter("description", val -> EventManager.main().getCurrentEvent().setDescription(val)),
+                        this.intSetter("player_limit", val -> EventManager.main().getCurrentEvent().setPlayerLimit(val)),
+                        this.borderSetter("border", val -> EventManager.main().getCurrentEvent().setAreaBounds(val)),
+                        this.boolSetter("announce_event_start", val -> EventManager.main().getCurrentEvent().setShouldAnnounceEvent(val)),
+                        this.worldSetter("dimension", val -> EventManager.main().getCurrentEvent().setHostingWorldId(val)),
+                        this.boolSetter("prevent_dimension_switches", val -> EventManager.main().getCurrentEvent().setShouldPreventDimensionSwitches(val)),
+                        this.locationSetter("spawnpoint", val -> EventManager.main().getCurrentEvent().setSpawn(val)),
+                        this.boolSetter("disable_ender_chests", val -> EventManager.main().getCurrentEvent().setDisableEnderChests(val)),
+                        this.boolSetter("disable_player_drops", val -> EventManager.main().getCurrentEvent().setDisablePlayerDrops(val)),
+                        this.boolSetter("use_temporary_players", val -> EventManager.main().getCurrentEvent().setUseTemporaryPlayers(val))
+                );
     }
 
     protected CommandAPICommand getLaunchCommand() {
