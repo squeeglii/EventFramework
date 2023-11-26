@@ -64,6 +64,9 @@ public abstract class EventInstance implements EventAPI, Listener {
         this.playerLimit = 1000;
         this.shouldAnnounceEvent = true;
         this.preventDimensionSwitches = true;
+        this.disableEnderChests = false;
+        this.disablePlayerDrops = false;
+        this.useTemporaryPlayer = true; // Useful for most out-of-world events. Disable for treasure hunts and stuff.
 
         this.areaBounds = null;
         this.spawnpoint = null;
@@ -272,7 +275,7 @@ public abstract class EventInstance implements EventAPI, Listener {
         this.worldId = worldId;
     }
 
-    public void setShouldPreventDimensionSwitches(boolean preventDimensionSwitches) {
+    public void setShouldPreventDimensionSwitching(boolean preventDimensionSwitches) {
         this.preventDimensionSwitches = preventDimensionSwitches;
     }
 

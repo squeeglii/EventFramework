@@ -13,7 +13,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
 import org.bukkit.command.CommandSender;
-import org.joml.Vector3f;
 
 import java.util.List;
 import java.util.Optional;
@@ -112,7 +111,7 @@ public class EventCommand extends ConfiguredCommand {
                         this.borderSetter("border", val -> EventManager.main().getCurrentEvent().setAreaBounds(val)),
                         this.boolSetter("announce_event_start", val -> EventManager.main().getCurrentEvent().setShouldAnnounceEvent(val)),
                         this.worldSetter("dimension", val -> EventManager.main().getCurrentEvent().setHostingWorldId(val)),
-                        this.boolSetter("prevent_dimension_switches", val -> EventManager.main().getCurrentEvent().setShouldPreventDimensionSwitches(val)),
+                        this.boolSetter("prevent_dimension_switches", val -> EventManager.main().getCurrentEvent().setShouldPreventDimensionSwitching(val)),
                         this.locationSetter("spawnpoint", val -> EventManager.main().getCurrentEvent().setSpawn(val)),
                         this.boolSetter("disable_ender_chests", val -> EventManager.main().getCurrentEvent().setDisableEnderChests(val)),
                         this.boolSetter("disable_player_drops", val -> EventManager.main().getCurrentEvent().setDisablePlayerDrops(val)),
