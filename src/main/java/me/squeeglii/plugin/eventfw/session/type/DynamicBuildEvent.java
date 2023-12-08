@@ -12,7 +12,7 @@ public class DynamicBuildEvent extends EventInstance implements Listener {
         super();
         this.setUseTemporaryPlayers(true);
         this.setDisableEnderChests(true);
-        this.setDisableEnderChests(true);
+        this.setDisablePlayerDrops(true);
         this.setShouldPreventDimensionSwitching(true);
 
         // a border is recommended on top of all of this but this is hard to automatically do.
