@@ -22,9 +22,7 @@ public class JoinCommand extends ConfiguredCommand {
     public CommandAPICommand buildCommand() {
         return new CommandAPICommand(this.getId())
                 .withRequirement(sender -> sender instanceof Player)
-                .withArguments(
-                        new StringArgument("id").setOptional(true)
-                ).executesPlayer((sender, args) -> {
+                .executesPlayer((sender, args) -> {
 
                     if(!EventManager.main().isEventRunning()) {
                         sender.sendMessage(Component.text("There are no events running!", NamedTextColor.RED));
