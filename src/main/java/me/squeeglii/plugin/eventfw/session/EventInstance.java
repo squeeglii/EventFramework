@@ -28,6 +28,8 @@ import java.util.*;
 
 public abstract class EventInstance implements EventAPI, Listener {
 
+    public static final int BORDER_BUFFER = 15;
+
     // Active Instance Tracking
     private boolean hasStarted;
 
@@ -35,7 +37,10 @@ public abstract class EventInstance implements EventAPI, Listener {
     private final Set<Player> leavingPlayers;
     private HashMap<UUID, PlayerSnapshot> playerStates; // Used to restore pre-event state.
     private World world;
+
+    // Tasks
     private BukkitTask tickTask;
+    private BukkitTask borderEnforcementTask;
 
 
     // Configuration
@@ -74,6 +79,7 @@ public abstract class EventInstance implements EventAPI, Listener {
 
         this.world = null;
         this.tickTask = null;
+        this.borderEnforcementTask = null;
     }
 
 
@@ -93,6 +99,10 @@ public abstract class EventInstance implements EventAPI, Listener {
                 .getServer()
                 .getScheduler()
                 .runTaskTimer(EventFramework.plugin(), this::onTick, 1, 1);
+        this.borderEnforcementTask = EventFramework.plugin()
+                .getServer()
+                .getScheduler()
+                .runTaskTimer(EventFramework.plugin(), this::runWorldBorderChecks, 1, 5);
 
         EventFramework.plugin().registerListener(this);
         this.hasStarted = true;
@@ -103,6 +113,7 @@ public abstract class EventInstance implements EventAPI, Listener {
         this.hasStarted = false;
 
         this.tickTask.cancel();
+        this.borderEnforcementTask.cancel();
         EventFramework.plugin().unregisterListener(this);
 
         this.onStop();
@@ -151,30 +162,10 @@ public abstract class EventInstance implements EventAPI, Listener {
 
         this.onPrePlayerAdd(player);
 
-        Location spawn = this.getSpawn();
+        this.teleportPlayerToSpawn(player);
 
-        if(spawn != null) {
-            player.teleport(spawn, PlayerTeleportEvent.TeleportCause.PLUGIN);
-        }
-
-        if(this.areaBounds != null) {
-
-            // Fallback spawnpoint.
-            if(this.spawnpoint == null) {
-                Location center = this.areaBounds.getCenter();
-                int blockX = center.getBlockX();
-                int blockZ = center.getBlockZ();
-
-                double spawnY = this.world.getHighestBlockYAt(blockX, blockZ, HeightMap.MOTION_BLOCKING) + 1.1;
-                double spawnX = center.getBlockX() + 0.5;
-                double spawnZ = blockZ + 0.5;
-                Location newHighestCenter = new Location(this.world, spawnX, spawnY, spawnZ);
-
-                player.teleport(newHighestCenter, PlayerTeleportEvent.TeleportCause.PLUGIN);
-            }
-
+        if(this.areaBounds != null)
             player.setWorldBorder(this.areaBounds);
-        }
 
         this.playerList.add(player);
         this.onPlayerAdd(player);
@@ -199,6 +190,68 @@ public abstract class EventInstance implements EventAPI, Listener {
         this.playerList.remove(player);
         this.leavingPlayers.remove(player);
         return true;
+    }
+
+
+    /**
+     * Teleports player to spawn if a valid spawn can be found. Valid spawns include:
+     * - The center of the world border (highest y pos)
+     * - Manually set spawnpoint (with event property)
+     * @param player the player to teleport.
+     * @return true if the player was teleported
+     */
+    public final boolean teleportPlayerToSpawn(Player player) {
+
+        // Spawn at assigned spawn (or game determined)
+        Location spawn = this.getSpawn();
+        if(spawn != null) {
+            player.teleport(spawn, PlayerTeleportEvent.TeleportCause.PLUGIN);
+            return true;
+        }
+
+        // No spawn, fallback to border center.
+        WorldBorder border = this.areaBounds;
+        if(border != null) {
+            Location center = border.getCenter();
+            int blockX = center.getBlockX();
+            int blockZ = center.getBlockZ();
+
+            double spawnY = this.world.getHighestBlockYAt(blockX, blockZ, HeightMap.MOTION_BLOCKING) + 1.1;
+            double spawnX = center.getBlockX() + 0.5;
+            double spawnZ = blockZ + 0.5;
+            Location newHighestCenter = new Location(this.world, spawnX, spawnY, spawnZ);
+
+            player.teleport(newHighestCenter, PlayerTeleportEvent.TeleportCause.PLUGIN);
+            return true;
+        }
+
+        return false;
+    }
+
+    public final void runWorldBorderChecks() {
+        if(this.areaBounds == null)
+            return;
+
+        double size = this.areaBounds.getSize() * 0.5d;
+        Location center = this.areaBounds.getCenter();
+        Location lowCorner = center.add(-(BORDER_BUFFER + size), 0, -(BORDER_BUFFER + size));
+        Location highCorner = center.add(BORDER_BUFFER + size, 0, BORDER_BUFFER + size);
+
+        Component warningMessage = Component.text("Hey! Don't leave the world border!")
+                                            .color(NamedTextColor.RED);
+
+        for(Player player: this.getPlayerList()) {
+            Location pos = player.getLocation();
+
+            boolean passesLowCorner = pos.x() >= lowCorner.x() || pos.z() >= lowCorner.z();
+            boolean passesHighCorner = pos.x() <= highCorner.y() || pos.z() <= highCorner.z();
+
+            if(passesLowCorner && passesHighCorner)
+                continue;
+
+            if(this.teleportPlayerToSpawn(player))
+                player.sendMessage(warningMessage);
+        }
     }
 
 
