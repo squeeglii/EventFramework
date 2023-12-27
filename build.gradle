@@ -37,9 +37,9 @@ repositories {
 
 
 dependencies {
-    paperweight.paperDevBundle("1.20.2-R0.1-SNAPSHOT")
+    paperweight.paperDevBundle(project.properties["spigot_distribution"])
 
-    implementation "dev.jorel:commandapi-bukkit-shade:9.2.0"
+    implementation "dev.jorel:commandapi-bukkit-shade:${project.properties["command_api_version"]}"
 }
 
 shadowJar {
