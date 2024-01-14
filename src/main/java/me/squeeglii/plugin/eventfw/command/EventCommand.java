@@ -6,6 +6,8 @@ import dev.jorel.commandapi.wrappers.Location2D;
 import me.squeeglii.plugin.eventfw.EventFramework;
 import me.squeeglii.plugin.eventfw.Permission;
 import me.squeeglii.plugin.eventfw.TextUtil;
+import me.squeeglii.plugin.eventfw.command.param.ParamAsserts;
+import me.squeeglii.plugin.eventfw.command.param.ParameterAssertion;
 import me.squeeglii.plugin.eventfw.session.EventInstance;
 import me.squeeglii.plugin.eventfw.session.EventManager;
 import me.squeeglii.plugin.eventfw.session.EventType;
@@ -16,11 +18,9 @@ import org.bukkit.command.CommandSender;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Consumer;
+import java.util.function.BiConsumer;
 
 public class EventCommand extends ConfiguredCommand {
-
-    public static final String MANAGE_EVENT = "eventfw.manage";
 
     // /event new <EventType: type> <string: id>
     // /event configure <name|description|max_players>
@@ -105,17 +105,17 @@ public class EventCommand extends ConfiguredCommand {
     protected CommandAPICommand getConfigCommand() {
         return new CommandAPICommand("configure")
                 .withSubcommands(
-                        this.stringSetter("name", val -> EventManager.main().getCurrentEvent().setName(val)),
-                        this.stringSetter("description", val -> EventManager.main().getCurrentEvent().setDescription(val)),
-                        this.intSetter("player_limit", val -> EventManager.main().getCurrentEvent().setPlayerLimit(val)),
-                        this.borderSetter("border", val -> EventManager.main().getCurrentEvent().setAreaBounds(val)),
-                        this.boolSetter("announce_event_start", val -> EventManager.main().getCurrentEvent().setShouldAnnounceEvent(val)),
-                        this.worldSetter("dimension", val -> EventManager.main().getCurrentEvent().setHostingWorldId(val)),
-                        this.boolSetter("prevent_dimension_switches", val -> EventManager.main().getCurrentEvent().setShouldPreventDimensionSwitching(val)),
-                        this.locationSetter("spawnpoint", val -> EventManager.main().getCurrentEvent().setSpawn(val)),
-                        this.boolSetter("disable_ender_chests", val -> EventManager.main().getCurrentEvent().setDisableEnderChests(val)),
-                        this.boolSetter("disable_player_drops", val -> EventManager.main().getCurrentEvent().setDisablePlayerDrops(val)),
-                        this.boolSetter("use_temporary_players", val -> EventManager.main().getCurrentEvent().setUseTemporaryPlayers(val))
+                        this.borderSetter(EventInstance::setAreaBounds),
+                        this.stringSetter("name", EventInstance::setName, ParamAsserts.STRING_NOT_EMPTY),
+                        this.stringSetter("description", EventInstance::setDescription),
+                        this.intSetter("player_limit", EventInstance::setPlayerLimit, ParamAsserts.INT_GREATER_THAN_ZERO),
+                        this.boolSetter("announce_event_start", EventInstance::setShouldAnnounceEvent),
+                        this.worldSetter("dimension", EventInstance::setHostingWorldId),
+                        this.boolSetter("prevent_dimension_switches", EventInstance::setShouldPreventDimensionSwitching),
+                        this.locationSetter("spawnpoint", EventInstance::setSpawn),
+                        this.boolSetter("disable_ender_chests", EventInstance::setDisableEnderChests),
+                        this.boolSetter("disable_player_drops", EventInstance::setDisablePlayerDrops),
+                        this.boolSetter("use_temporary_players", EventInstance::setUseTemporaryPlayers)
                 );
     }
 
@@ -147,129 +147,167 @@ public class EventCommand extends ConfiguredCommand {
                 });
     }
 
-    private CommandAPICommand intSetter(String name, Consumer<Integer> setter) {
+    @SafeVarargs
+    private CommandAPICommand intSetter(String name, BiConsumer<EventInstance, Integer> setter, ParameterAssertion<Integer>... assertions) {
         return new CommandAPICommand(name)
                 .withArguments(new IntegerArgument("value").setOptional(false))
                 .executes((sender, args) -> {
-                    if(EventManager.main().getCurrentEvent() == null) {
-                        this.errorBecauseNoEvent(sender);
-                        return;
-                    }
-
                     Integer value = (Integer) args.get("value");
 
                     if(value == null) {
-                        this.errorBecause(sender, "Invalid value!");
+                        this.errorBecause(sender, "Missing integer param for 'value'!");
                         return;
                     }
 
-                    setter.accept(value);
-                    sender.sendMessage(TextUtil.message("Updated '%s' to '%s'!".formatted(name, value)));
+                    for(ParameterAssertion<Integer> assertion: assertions) {
+                        if(assertion.test(value)) continue;
+
+                        String errorMessage = assertion.getErrorMessage(value, "value");
+                        this.errorBecause(sender, errorMessage);
+                        return;
+                    }
+
+                    this.complete(sender, setter, name, value);
                 });
     }
 
-    private CommandAPICommand boolSetter(String name, Consumer<Boolean> setter) {
+    @SafeVarargs
+    private CommandAPICommand boolSetter(String name, BiConsumer<EventInstance, Boolean> setter, ParameterAssertion<Boolean>... assertions) {
         return new CommandAPICommand(name)
                 .withArguments(new BooleanArgument("value").setOptional(false))
                 .executes((sender, args) -> {
-                    if(EventManager.main().getCurrentEvent() == null) {
-                        this.errorBecauseNoEvent(sender);
-                        return;
-                    }
-
                     Boolean value = (Boolean) args.get("value");
 
                     if(value == null) {
-                        this.errorBecause(sender, "Invalid value!");
+                        this.errorBecause(sender, "Missing boolean param for 'value'!");
                         return;
                     }
 
-                    setter.accept(value);
-                    sender.sendMessage(TextUtil.message("Updated '%s' to '%s'!".formatted(name, value)));
+                    // tbf, are boolean assertions needed? Guess you could check the state of something?
+                    for(ParameterAssertion<Boolean> assertion: assertions) {
+                        if(assertion.test(value)) continue;
+
+                        String errorMessage = assertion.getErrorMessage(value, "value");
+                        this.errorBecause(sender, errorMessage);
+                        return;
+                    }
+
+                    this.complete(sender, setter, name, value);
                 });
     }
 
-    private CommandAPICommand stringSetter(String name, Consumer<String> setter) {
+    @SafeVarargs
+    private CommandAPICommand stringSetter(String name, BiConsumer<EventInstance, String> setter, ParameterAssertion<String>... assertions) {
         return new CommandAPICommand(name)
                 .withArguments(new GreedyStringArgument("value").setOptional(false))
                 .executes((sender, args) -> {
-                    if(EventManager.main().getCurrentEvent() == null) {
-                        this.errorBecauseNoEvent(sender);
-                        return;
-                    }
-
                     String value = (String) args.get("value");
 
                     if(value == null) {
-                        this.errorBecause(sender, "Invalid value!");
+                        this.errorBecause(sender, "Missing text param for 'value'!");
                         return;
                     }
 
-                    setter.accept(value);
-                    sender.sendMessage(TextUtil.message("Updated '%s' to '%s'!".formatted(name, value)));
+                    for(ParameterAssertion<String> assertion: assertions) {
+                        if(assertion.test(value)) continue;
+
+                        String errorMessage = assertion.getErrorMessage(value, "value");
+                        this.errorBecause(sender, errorMessage);
+                        return;
+                    }
+
+                    this.complete(sender, setter, name, value);
                 });
     }
 
-    private CommandAPICommand locationSetter(String name, Consumer<Location> setter) {
+    @SafeVarargs
+    private CommandAPICommand locationSetter(String name, BiConsumer<EventInstance, Location> setter, ParameterAssertion<Location>... assertions) {
         return new CommandAPICommand(name)
                 .withArguments(new LocationArgument("value").setOptional(false))
                 .executes((sender, args) -> {
-                    if(EventManager.main().getCurrentEvent() == null) {
-                        this.errorBecauseNoEvent(sender);
-                        return;
-                    }
 
                     Location value = (Location) args.get("value");
 
                     if(value == null) {
-                        this.errorBecause(sender, "Invalid value!");
+                        this.errorBecause(sender, "Missing location param for 'value'!");
                         return;
                     }
 
-                    setter.accept(value);
+                    for(ParameterAssertion<Location> assertion: assertions) {
+                        if(assertion.test(value)) continue;
+
+                        String errorMessage = assertion.getErrorMessage(value, "value");
+                        this.errorBecause(sender, errorMessage);
+                        return;
+                    }
+
+                    EventInstance event = EventManager.main().getCurrentEvent();
+
+                    if(event == null) {
+                        this.errorBecauseNoEvent(sender);
+                        return;
+                    }
+
+                    setter.accept(event, value);
                     sender.sendMessage(TextUtil.message("Updated '%s' to 'x=%s, y = %s, z=%s'!".formatted(
                             name, value.x(), value.y(), value.z()
                     )));
                 });
     }
 
-    private CommandAPICommand borderSetter(String name, Consumer<WorldBorder> setter) {
-        return new CommandAPICommand(name)
+    private CommandAPICommand borderSetter(BiConsumer<EventInstance, WorldBorder> setter) {
+        return new CommandAPICommand("border")
                 .withArguments(
                         new Location2DArgument("center").setOptional(false),
                         new DoubleArgument("diameter").setOptional(false)
                 )
                 .executes((sender, args) -> {
-                    if(EventManager.main().getCurrentEvent() == null) {
-                        this.errorBecauseNoEvent(sender);
-                        return;
-                    }
-
                     Location2D center = (Location2D) args.get("center");
                     Double diameter = (Double) args.get("diameter");
 
                     WorldBorder vWorldBorder = Bukkit.createWorldBorder();
 
                     if(center == null) {
-                        this.errorBecause(sender, "Invalid border center co-ordinates!");
+                        this.errorBecause(sender, "Incomplete co-ordinates for border 'center'!");
+                        return;
+                    }
+
+                    if(diameter == null) {
+                        this.errorBecause(sender, "Invalid value for border 'diameter'!");
+                        return;
+                    }
+
+                    if(diameter <= 1) {
+                        this.errorBecause(sender, "Value for border 'diameter' should not be smaller than 1!");
+                        return;
+                    }
+
+                    double maxSize = vWorldBorder.getMaxSize();
+
+                    if(diameter >= maxSize) {
+                        this.errorBecause(
+                                sender,
+                                "Value for border 'diameter' must not be bigger than or equal to %s!".formatted(maxSize)
+                        );
+                        return;
+                    }
+
+                    EventInstance event = EventManager.main().getCurrentEvent();
+
+                    if(event == null) {
+                        this.errorBecauseNoEvent(sender);
                         return;
                     }
 
                     vWorldBorder.setCenter(center);
-
-                    if(diameter == null || diameter <= 1 || diameter >= vWorldBorder.getMaxSize()) {
-                        this.errorBecause(sender, "Invalid border size!");
-                        return;
-                    }
-
                     vWorldBorder.setSize(diameter);
 
-                    setter.accept(vWorldBorder);
-                    sender.sendMessage(TextUtil.message("Updated '%s'!".formatted(name)));
+                    setter.accept(event, vWorldBorder);
+                    sender.sendMessage(TextUtil.message("Updated 'border'!"));
                 });
     }
 
-    private CommandAPICommand worldSetter(String name, Consumer<NamespacedKey> setter) {
+    private CommandAPICommand worldSetter(String name, BiConsumer<EventInstance, NamespacedKey> setter) {
         CommandAPICommand command = new CommandAPICommand(name);
 
         for(World world: EventFramework.plugin().getServer().getWorlds()) {
@@ -277,7 +315,15 @@ public class EventCommand extends ConfiguredCommand {
             String strVal = val.asString();
 
             command.withSubcommand(new CommandAPICommand(strVal).executes((sender, args) -> {
-                setter.accept(val);
+
+                EventInstance event = EventManager.main().getCurrentEvent();
+
+                if(event == null) {
+                    this.errorBecauseNoEvent(sender);
+                    return;
+                }
+
+                setter.accept(event, val);
                 sender.sendMessage(TextUtil.message("Updated '%s' to '%s'!".formatted(name, strVal)));
             }));
         }
@@ -302,5 +348,17 @@ public class EventCommand extends ConfiguredCommand {
         );
 
         sender.sendMessage(component);
+    }
+
+    private <V> void complete(CommandSender sender, BiConsumer<EventInstance, V> setter, String argName, V value) {
+        EventInstance event = EventManager.main().getCurrentEvent();
+
+        if(EventManager.main().getCurrentEvent() == null) {
+            this.errorBecauseNoEvent(sender);
+            return;
+        }
+
+        setter.accept(event, value);
+        sender.sendMessage(TextUtil.message("Updated '%s' to '%s'!".formatted(argName, value)));
     }
 }
