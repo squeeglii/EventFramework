@@ -326,6 +326,10 @@ public abstract class EventInstance implements EventAPI, Listener {
 
     public void setHostingWorldId(NamespacedKey worldId) {
         this.worldId = worldId;
+
+        if(this.hasStarted()) {
+            EventFramework.plugin().getLogger().warning("Tried to set event world id while the event was running.");
+        }
     }
 
     public void setShouldPreventDimensionSwitching(boolean preventDimensionSwitches) {

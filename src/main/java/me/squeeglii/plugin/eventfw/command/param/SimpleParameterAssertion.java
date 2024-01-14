@@ -12,6 +12,11 @@ public class SimpleParameterAssertion<V> extends ParameterAssertion<V> {
         this.errorProvider = errorProvider;
     }
 
+    public SimpleParameterAssertion(SimpleParameterAssertion<?> assertion) {
+        this.test = val -> assertion.test(null);
+        this.errorProvider = (value, paramName) -> assertion.errorProvider.getErrorFor(null, paramName);
+    }
+
     @Override
     public boolean test(V valueIn) {
         return this.test.test(valueIn);

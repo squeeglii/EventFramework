@@ -108,14 +108,14 @@ public class EventCommand extends ConfiguredCommand {
                         this.borderSetter(EventInstance::setAreaBounds),
                         this.stringSetter("name", EventInstance::setName, ParamAsserts.STRING_NOT_EMPTY),
                         this.stringSetter("description", EventInstance::setDescription),
-                        this.intSetter("player_limit", EventInstance::setPlayerLimit, ParamAsserts.INT_GREATER_THAN_ZERO),
+                        this.intSetter("player_limit", EventInstance::setPlayerLimit, ParamAsserts.INT_GREATER_THAN_ZERO, ParamAsserts.wrap(ParamAsserts.EVENT_HAS_NOT_STARTED)),
                         this.boolSetter("announce_event_start", EventInstance::setShouldAnnounceEvent),
-                        this.worldSetter("dimension", EventInstance::setHostingWorldId),
+                        this.worldSetter("dimension", EventInstance::setHostingWorldId, ParamAsserts.wrap(ParamAsserts.EVENT_HAS_NOT_STARTED)),
                         this.boolSetter("prevent_dimension_switches", EventInstance::setShouldPreventDimensionSwitching),
                         this.locationSetter("spawnpoint", EventInstance::setSpawn),
                         this.boolSetter("disable_ender_chests", EventInstance::setDisableEnderChests),
                         this.boolSetter("disable_player_drops", EventInstance::setDisablePlayerDrops),
-                        this.boolSetter("use_temporary_players", EventInstance::setUseTemporaryPlayers)
+                        this.boolSetter("use_temporary_players", EventInstance::setUseTemporaryPlayers, ParamAsserts.wrap(ParamAsserts.EVENT_HAS_NOT_STARTED))
                 );
     }
 
@@ -307,7 +307,8 @@ public class EventCommand extends ConfiguredCommand {
                 });
     }
 
-    private CommandAPICommand worldSetter(String name, BiConsumer<EventInstance, NamespacedKey> setter) {
+    @SafeVarargs
+    private CommandAPICommand worldSetter(String name, BiConsumer<EventInstance, NamespacedKey> setter, ParameterAssertion<NamespacedKey>... assertions) {
         CommandAPICommand command = new CommandAPICommand(name);
 
         for(World world: EventFramework.plugin().getServer().getWorlds()) {
@@ -316,15 +317,15 @@ public class EventCommand extends ConfiguredCommand {
 
             command.withSubcommand(new CommandAPICommand(strVal).executes((sender, args) -> {
 
-                EventInstance event = EventManager.main().getCurrentEvent();
+                for(ParameterAssertion<NamespacedKey> assertion: assertions) {
+                    if(assertion.test(val)) continue;
 
-                if(event == null) {
-                    this.errorBecauseNoEvent(sender);
+                    String errorMessage = assertion.getErrorMessage(val, "value");
+                    this.errorBecause(sender, errorMessage);
                     return;
                 }
 
-                setter.accept(event, val);
-                sender.sendMessage(TextUtil.message("Updated '%s' to '%s'!".formatted(name, strVal)));
+                this.complete(sender, setter, name, val);
             }));
         }
 
