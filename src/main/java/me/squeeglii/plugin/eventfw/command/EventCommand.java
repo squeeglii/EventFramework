@@ -89,15 +89,15 @@ public class EventCommand extends ConfiguredCommand {
         return new CommandAPICommand("stop")
                 .executes((sender, args) -> {
 
-                    if(!EventManager.main().isEventRunning()) {
-                        Component errMsg = Component.text("There are no events currently running!");
+                    if(EventManager.main().getCurrentEvent() == null) {
+                        Component errMsg = Component.text("There are no events currently active!");
                         sender.sendMessage(errMsg);
                         return;
                     }
 
                     EventManager.main().stopCurrentEvent();
 
-                    Component component = TextUtil.message("Stopped any running events.");
+                    Component component = TextUtil.message("Halted & cleared any running or staged events.");
                     sender.sendMessage(component);
                 });
     }

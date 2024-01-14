@@ -17,10 +17,13 @@ public class EventManager {
     }
 
     public void stopCurrentEvent() {
-        if(serverEvent == null)
+        if(this.serverEvent == null)
             return;
 
-        this.serverEvent.stop();
+        if(this.serverEvent.hasStarted())
+            this.serverEvent.stop();
+
+        this.serverEvent = null;
     }
 
     public EventInstance getCurrentEvent() {
