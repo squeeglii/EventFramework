@@ -4,6 +4,7 @@ import me.squeeglii.plugin.eventfw.EventFramework;
 import me.squeeglii.plugin.eventfw.Permission;
 import me.squeeglii.plugin.eventfw.TextUtil;
 import me.squeeglii.plugin.eventfw.archive.PlayerSnapshot;
+import me.squeeglii.plugin.eventfw.exception.InvalidConfigurationException;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.JoinConfiguration;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -83,7 +84,10 @@ public abstract class EventInstance implements EventAPI, Listener {
     }
 
 
-    public final void start() {
+    /**
+     * @throws InvalidConfigurationException if a required config value isn't set, this is thrown.
+     */
+    public final void start() throws InvalidConfigurationException {
         if(this.hasStarted)
             return;
 

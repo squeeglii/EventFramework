@@ -1,45 +1,166 @@
 package me.squeeglii.plugin.eventfw.session.type.blockhunt;
 
-import org.bukkit.block.Block;
+import me.squeeglii.plugin.eventfw.EventFramework;
+import me.squeeglii.plugin.eventfw.session.EventInstance;
+import net.minecraft.core.BlockPos;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.BlockDisplay;
+import org.bukkit.entity.EntityType;
+import org.bukkit.entity.Player;
 
 public class HiddenBlockTracker {
 
     public static final int TICKS_TO_SETTLE = 40;
 
-    private Block block;
-    private int ticksStoodStill;
+    private final Player trackedPlayer;
+    private final EventInstance event;
+    private final BlockData block;
 
-    private boolean isApplied = false;
+    private BlockPos lastPosition;
+
+    private BlockDisplay blockDisplayEntity;
+
+    private int ticksStoodStill = 0;
+
+    private boolean hasSettled = false;
+    private boolean isEnabled = false;
+
+
+    public HiddenBlockTracker(Player target, EventInstance event, BlockData block) {
+        this.trackedPlayer = target;
+        this.event = event;
+        this.block = block;
+
+        if(event.getWorld() == null)
+            throw new IllegalStateException("Event world cannot be null. A world __must__ be assigned.");
+
+        this.blockDisplayEntity = null;
+    }
 
 
     // Everyone has a tracker but only hiders use the ticking.
-    private boolean apply() {
-        if(this.isApplied)
+    private boolean enable() {
+        if(this.isEnabled)
             return false;
 
+        if(this.blockDisplayEntity != null) {
+            this.blockDisplayEntity.remove();
+            this.blockDisplayEntity = null;
+        }
+
+        this.blockDisplayEntity = ((BlockDisplay) event.getWorld().spawnEntity(
+                this.trackedPlayer.getLocation(),
+                EntityType.BLOCK_DISPLAY
+        ));
+        this.blockDisplayEntity.setBlock(block);
+        this.blockDisplayEntity.addScoreboardTag("efw_entity");
+        this.blockDisplayEntity.teleport(this.trackedPlayer);
+
+        this.isEnabled = true;
+        this.hasSettled = false;
         this.ticksStoodStill = 0;
 
-        // TODO: create entity
+        this.updateVisualStateFor(this.trackedPlayer, false);
 
-        this.isApplied = true;
+        return true;
     }
 
 
-    public void tickStoodStill() {
-        if(!this.isApplied) return;
+    public void tick() {
+        if(!this.isEnabled)
+            return;
 
-        // TODO: Snap entity to world.
+        Location newPos = this.trackedPlayer.getLocation();
+        BlockPos newPosSnapped = BlockPos.containing(newPos.x(), newPos.y(), newPos.z());
+
+        this.blockDisplayEntity.teleport(this.trackedPlayer);
+        this.blockDisplayEntity.setVelocity(this.trackedPlayer.getVelocity());
+        
+        if(this.lastPosition != null) {
+            if(newPosSnapped.equals(this.lastPosition))
+                this.onStandTick();
+            else
+                this.onMoveTick();
+        }
+
+        this.lastPosition = newPosSnapped;
     }
 
     public void onMoveTick() {
-        if(!this.isApplied) return;
+        if(!this.isEnabled) return;
 
         this.ticksStoodStill = 0;
 
         //TODO: Re-snap entity to user pos.
     }
 
-    public Block getBlock() {
+    public void onStandTick() {
+        if(!this.isEnabled) return;
+
+        this.ticksStoodStill++;
+
+        //TODO: Re-snap entity to user pos.
+    }
+
+    /**
+     * Updates the visuals for a given viewer. Shows either a solid block or a display entity for hiders.
+     * @param player the viewer to update the state for
+     * @param revert if true, visuals should be returned to vanilla (i.e, player is leaving so why show a new state?)
+     */
+    public void updateVisualStateFor(Player player, boolean revert) {
+        Location blockLocation = new Location(
+                this.event.getWorld(),
+                this.lastPosition.getX(),
+                this.lastPosition.getY(),
+                this.lastPosition.getZ()
+        );
+
+        if(this.hasSettled || !revert) {
+            // Hide moving entity - send fake block
+            player.hideEntity(EventFramework.plugin(), this.blockDisplayEntity);
+            player.sendBlockChange(blockLocation, this.block);
+
+        } else {
+            // Show moving entity, ensure block is correct client-side
+            player.showEntity(EventFramework.plugin(), this.blockDisplayEntity);
+
+            BlockData serversideBlock = this.event.getWorld().getBlockData(blockLocation);
+            player.sendBlockChange(blockLocation, serversideBlock);
+        }
+    }
+
+    public void disable() {
+        if(this.blockDisplayEntity != null) {
+            this.blockDisplayEntity.remove();
+            this.blockDisplayEntity = null;
+        }
+    }
+
+    private void unsettle() {
+        if(!this.hasSettled)
+            return;
+
+        this.hasSettled = false;
+
+        for(Player player: this.event.getPlayerList()) {
+            this.updateVisualStateFor(player, false);
+        }
+    }
+
+    private void settle() {
+        if(this.hasSettled)
+            return;
+
+        this.hasSettled = true;
+
+        for(Player player: this.event.getPlayerList()) {
+            this.updateVisualStateFor(player, false);
+        }
+    }
+
+    public BlockData getBlock() {
         return this.block;
     }
 
@@ -47,7 +168,7 @@ public class HiddenBlockTracker {
         return (double) this.ticksStoodStill / TICKS_TO_SETTLE;
     }
 
-    public boolean isApplied() {
-        return this.isApplied;
+    public boolean isEnabled() {
+        return this.isEnabled;
     }
 }

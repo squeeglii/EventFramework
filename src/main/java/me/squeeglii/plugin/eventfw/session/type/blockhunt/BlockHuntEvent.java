@@ -3,8 +3,17 @@ package me.squeeglii.plugin.eventfw.session.type.blockhunt;
 import me.squeeglii.plugin.eventfw.SpigotUtil;
 import me.squeeglii.plugin.eventfw.session.EventInstance;
 import net.kyori.adventure.text.format.NamedTextColor;
-import org.bukkit.block.Block;
+import org.bukkit.GameMode;
+import org.bukkit.Location;
+import org.bukkit.Material;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
 
@@ -22,6 +31,11 @@ public class BlockHuntEvent extends EventInstance {
     private HashMap<Player, HiddenBlockTracker> blockTracker;
 
     private boolean isRoundRunning;
+
+    private float seekerSplitFraction = 0.1f;
+    private float minSeekers = 1;
+
+    private Location seekerSpawnpoint = null;
 
 
     public BlockHuntEvent() {
@@ -50,7 +64,7 @@ public class BlockHuntEvent extends EventInstance {
 
     @Override
     public void onPlayerAdd(Player player) {
-
+        player.setGameMode(GameMode.ADVENTURE);
     }
 
     @Override
@@ -60,8 +74,73 @@ public class BlockHuntEvent extends EventInstance {
 
     @Override
     public void onTick() {
+        if(this.isRoundRunning)
+            return;
 
+        this.blockTracker.values().forEach(HiddenBlockTracker::tick);
     }
+
+    @EventHandler
+    private void onDeath(EntityDamageEvent event) {
+        Entity entity = event.getEntity();
+
+        // Check entity is a player that is a part of this event.
+        if(!(entity instanceof Player player)) return;
+        if(!this.getPlayerList().contains(player)) return;
+
+        // 'Kill' if half a heart or less.
+        if(player.getHealth() - event.getFinalDamage() > 1.0f)
+            return;
+
+        event.setCancelled(true);
+
+
+        if(this.hiderTeam.hasPlayer(player)) {
+            // switch to seekers.
+            HiddenBlockTracker tracker = this.blockTracker.get(player);
+
+            if(tracker != null)
+                tracker.disable();
+
+            this.hiderTeam.removePlayer(player);
+            this.seekerTeam.addPlayer(player);
+        }
+
+        if(this.seekerTeam.hasPlayer(player)) {
+            // respawn with timer?
+            Location seekerSpawn = this.getValidSeekerSpawnpoint();
+            player.teleport(seekerSpawn);
+
+            PlayerInventory inventory = player.getInventory();
+
+            inventory.setChestplate(new ItemStack(Material.IRON_CHESTPLATE));
+            inventory.setLeggings(new ItemStack(Material.IRON_LEGGINGS));
+            inventory.setBoots(new ItemStack(Material.IRON_BOOTS));
+
+            return;
+        }
+
+        if(this.spectatorsTeam.hasPlayer(player)) {
+            // respawn instantly
+            return;
+        }
+    }
+
+
+    private void startRound() {
+        if(this.isRoundRunning)
+            return;
+
+        this.blockTracker.clear();
+
+        for(Player player: this.getPlayerList()) {
+            HiddenBlockTracker tracker = new HiddenBlockTracker(player, this, Material.BRICKS.createBlockData());
+        }
+
+        this.isRoundRunning = true;
+    }
+
+
 
 
     protected void initTeams() {
@@ -84,11 +163,28 @@ public class BlockHuntEvent extends EventInstance {
         this.spectatorsTeam.setCanSeeFriendlyInvisibles(true);
     }
 
-    private Set<Block> getRemainingBlocks() {
+    private Set<BlockData> getRemainingBlocks() {
         return this.blockTracker.values().stream()
-                .filter(HiddenBlockTracker::isApplied)
+                .filter(HiddenBlockTracker::isEnabled)
                 .map(HiddenBlockTracker::getBlock)
                 .collect(Collectors.toSet());
     }
 
+    public void setSeekerSplitFraction(float seekerSplitFraction) {
+        this.seekerSplitFraction = seekerSplitFraction;
+    }
+
+    public void setMinSeekers(float minSeekers) {
+        this.minSeekers = minSeekers;
+    }
+
+    public void setSeekerSpawnpoint(Location seekerSpawnpoint) {
+        this.seekerSpawnpoint = seekerSpawnpoint;
+    }
+
+    private Location getValidSeekerSpawnpoint() {
+        if(this.seekerSpawnpoint == null) {
+
+        }
+    }
 }

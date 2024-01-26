@@ -8,9 +8,11 @@ import me.squeeglii.plugin.eventfw.Permission;
 import me.squeeglii.plugin.eventfw.TextUtil;
 import me.squeeglii.plugin.eventfw.command.param.ParamAsserts;
 import me.squeeglii.plugin.eventfw.command.param.ParameterAssertion;
+import me.squeeglii.plugin.eventfw.exception.InvalidConfigurationException;
 import me.squeeglii.plugin.eventfw.session.EventInstance;
 import me.squeeglii.plugin.eventfw.session.EventManager;
 import me.squeeglii.plugin.eventfw.session.EventType;
+import me.squeeglii.plugin.eventfw.session.type.blockhunt.BlockHuntEvent;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import org.bukkit.*;
@@ -115,7 +117,23 @@ public class EventCommand extends ConfiguredCommand {
                         this.locationSetter("spawnpoint", EventInstance::setSpawn),
                         this.boolSetter("disable_ender_chests", EventInstance::setDisableEnderChests),
                         this.boolSetter("disable_player_drops", EventInstance::setDisablePlayerDrops),
-                        this.boolSetter("use_temporary_players", EventInstance::setUseTemporaryPlayers, ParamAsserts.wrap(ParamAsserts.EVENT_HAS_NOT_STARTED))
+                        this.boolSetter("use_temporary_players", EventInstance::setUseTemporaryPlayers, ParamAsserts.wrap(ParamAsserts.EVENT_HAS_NOT_STARTED)),
+
+                        // Block-hunt only
+                        //TODO: make these only appear if event is set to blockhunt.
+                        this.floatSetter("bh_seeker_split",
+                                (event, val) -> ((BlockHuntEvent) event).setSeekerSplitFraction(val),
+                                ParamAsserts.wrap(ParamAsserts.EVENT_IS_BLOCK_HUNT),
+                                ParamAsserts.FLOAT_GREATER_THAN_ZERO, ParamAsserts.FLOAT_LESS_THAN_ONE
+                        ),
+                        this.intSetter("bh_min_seekers",
+                                (event, val) -> ((BlockHuntEvent) event).setMinSeekers(val),
+                                ParamAsserts.wrap(ParamAsserts.EVENT_IS_BLOCK_HUNT), ParamAsserts.INT_GREATER_THAN_ZERO
+                        ),
+                        this.locationSetter("bh_seeker_spawn",
+                                (event, val) -> ((BlockHuntEvent) event).setSeekerSpawnpoint(val),
+                                ParamAsserts.wrap(ParamAsserts.EVENT_IS_BLOCK_HUNT)
+                        )
                 );
     }
 
@@ -136,6 +154,11 @@ public class EventCommand extends ConfiguredCommand {
 
                     try {
                         event.start();
+                    } catch (InvalidConfigurationException err) {
+                        Component msg = Component.text("Could not start event: %s".formatted(err.getMessage())).color(NamedTextColor.RED);
+                        sender.sendMessage(msg);
+                        return;
+
                     } catch (Exception err) {
                         sender.sendMessage(Component.text("Something went wrong while starting the event.", NamedTextColor.RED));
                         EventFramework.plugin().getLogger().throwing("EventCommand", "launch", err);
@@ -160,6 +183,30 @@ public class EventCommand extends ConfiguredCommand {
                     }
 
                     for(ParameterAssertion<Integer> assertion: assertions) {
+                        if(assertion.test(value)) continue;
+
+                        String errorMessage = assertion.getErrorMessage(value, "value");
+                        this.errorBecause(sender, errorMessage);
+                        return;
+                    }
+
+                    this.complete(sender, setter, name, value);
+                });
+    }
+
+    @SafeVarargs
+    private CommandAPICommand floatSetter(String name, BiConsumer<EventInstance, Float> setter, ParameterAssertion<Float>... assertions) {
+        return new CommandAPICommand(name)
+                .withArguments(new FloatArgument("value").setOptional(false))
+                .executes((sender, args) -> {
+                    Float value = (Float) args.get("value");
+
+                    if(value == null) {
+                        this.errorBecause(sender, "Missing integer param for 'value'!");
+                        return;
+                    }
+
+                    for(ParameterAssertion<Float> assertion: assertions) {
                         if(assertion.test(value)) continue;
 
                         String errorMessage = assertion.getErrorMessage(value, "value");
