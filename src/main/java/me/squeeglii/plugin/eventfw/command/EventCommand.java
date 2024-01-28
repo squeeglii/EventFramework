@@ -118,6 +118,7 @@ public class EventCommand extends ConfiguredCommand {
                         this.boolSetter("disable_ender_chests", EventInstance::setDisableEnderChests),
                         this.boolSetter("disable_player_drops", EventInstance::setDisablePlayerDrops),
                         this.boolSetter("use_temporary_players", EventInstance::setUseTemporaryPlayers, ParamAsserts.wrap(ParamAsserts.EVENT_HAS_NOT_STARTED)),
+                        this.boolSetter("skip_extra_border_checks", EventInstance::setSkipExtraBorderChecks),
 
                         // Block-hunt only
                         //TODO: make these only appear if event is set to blockhunt.

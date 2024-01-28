@@ -1,8 +1,10 @@
 package me.squeeglii.plugin.eventfw.session.type.blockhunt;
 
 import me.squeeglii.plugin.eventfw.SpigotUtil;
+import me.squeeglii.plugin.eventfw.exception.InvalidConfigurationException;
 import me.squeeglii.plugin.eventfw.session.EventInstance;
 import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -11,11 +13,12 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scoreboard.Scoreboard;
 import org.bukkit.scoreboard.Team;
+import org.joml.Math;
 
 import java.util.HashMap;
 import java.util.Set;
@@ -33,7 +36,7 @@ public class BlockHuntEvent extends EventInstance {
     private boolean isRoundRunning;
 
     private float seekerSplitFraction = 0.1f;
-    private float minSeekers = 1;
+    private int minSeekers = 1;
 
     private Location seekerSpawnpoint = null;
 
@@ -50,7 +53,11 @@ public class BlockHuntEvent extends EventInstance {
 
 
     @Override
-    public void onStart() {
+    public void onStart() throws InvalidConfigurationException {
+        if(this.seekerSpawnpoint == null)
+            throw new InvalidConfigurationException("'bh_seeker_spawn' must be set!");
+
+        this.setUseTemporaryPlayers(true); // always override this.
         this.initTeams();
     }
 
@@ -64,12 +71,23 @@ public class BlockHuntEvent extends EventInstance {
 
     @Override
     public void onPlayerAdd(Player player) {
-        player.setGameMode(GameMode.ADVENTURE);
+        if(this.isRoundRunning)
+            this.spectatorsTeam.addPlayer(player);
+
+        player.setGameMode(GameMode.SPECTATOR);
+        player.getInventory().clear();
+        player.setHealth(20.0f);
+        player.setFoodLevel(20);
+        player.setFireTicks(0);
+        player.clearActivePotionEffects();
     }
 
     @Override
     public void onPlayerLeave(Player player) {
+        HiddenBlockTracker tracker = this.blockTracker.remove(player);
 
+        if(tracker != null)
+            tracker.disable();
     }
 
     @Override
@@ -113,9 +131,19 @@ public class BlockHuntEvent extends EventInstance {
 
             PlayerInventory inventory = player.getInventory();
 
+            inventory.clear();
             inventory.setChestplate(new ItemStack(Material.IRON_CHESTPLATE));
             inventory.setLeggings(new ItemStack(Material.IRON_LEGGINGS));
             inventory.setBoots(new ItemStack(Material.IRON_BOOTS));
+
+            ItemStack swordItem = new ItemStack(Material.IRON_SWORD);
+            ItemMeta meta = swordItem.getItemMeta();
+            meta.setUnbreakable(true);
+
+            swordItem.setItemMeta(meta);
+
+            inventory.setItem(0, swordItem);
+            inventory.setHeldItemSlot(0);
 
             return;
         }
@@ -136,6 +164,8 @@ public class BlockHuntEvent extends EventInstance {
         for(Player player: this.getPlayerList()) {
             HiddenBlockTracker tracker = new HiddenBlockTracker(player, this, Material.BRICKS.createBlockData());
         }
+
+
 
         this.isRoundRunning = true;
     }
@@ -163,6 +193,31 @@ public class BlockHuntEvent extends EventInstance {
         this.spectatorsTeam.setCanSeeFriendlyInvisibles(true);
     }
 
+    protected BlockHuntTeam balanceIntoTeam(Player player) {
+        int playerCount = this.getPlayerList().size();
+        int playerCountFracAsSeekers = (int) Math.ceil(playerCount / this.seekerSplitFraction); // greedy
+        int seekerTarget = Math.max(playerCountFracAsSeekers, this.minSeekers);
+
+        this.hiderTeam.removePlayer(player);
+        this.seekerTeam.removePlayer(player);
+        this.spectatorsTeam.removePlayer(player);
+
+        // Seeker team is greedy with its fraction - i.e 0.99 will grab 100% of the players unless there's 100 players
+        // soooo, prioritise the hiders if it's empty.
+        if(this.hiderTeam.getSize() <= 0) {
+            this.hiderTeam.addPlayer(player);
+            return BlockHuntTeam.HIDER;
+        }
+
+        if(this.seekerTeam.getSize() < seekerTarget) {
+            this.seekerTeam.addPlayer(player);
+            return BlockHuntTeam.SEEKER;
+        } else {
+            this.hiderTeam.addPlayer(player);
+            return BlockHuntTeam.HIDER;
+        }
+    }
+
     private Set<BlockData> getRemainingBlocks() {
         return this.blockTracker.values().stream()
                 .filter(HiddenBlockTracker::isEnabled)
@@ -174,7 +229,7 @@ public class BlockHuntEvent extends EventInstance {
         this.seekerSplitFraction = seekerSplitFraction;
     }
 
-    public void setMinSeekers(float minSeekers) {
+    public void setMinSeekers(int minSeekers) {
         this.minSeekers = minSeekers;
     }
 

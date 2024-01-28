@@ -53,6 +53,7 @@ public abstract class EventInstance implements EventAPI, Listener {
     private boolean useTemporaryPlayer;
     private boolean disableEnderChests;
     private boolean disablePlayerDrops;
+    private boolean skipExtraBorderChecks;
 
     private WorldBorder areaBounds;
     private Location spawnpoint;
@@ -73,6 +74,7 @@ public abstract class EventInstance implements EventAPI, Listener {
         this.disableEnderChests = false;
         this.disablePlayerDrops = false;
         this.useTemporaryPlayer = true; // Useful for most out-of-world events. Disable for treasure hunts and stuff.
+        this.skipExtraBorderChecks = false;
 
         this.areaBounds = null;
         this.spawnpoint = null;
@@ -236,21 +238,26 @@ public abstract class EventInstance implements EventAPI, Listener {
         if(this.areaBounds == null)
             return;
 
+        if(this.skipExtraBorderChecks)
+            return;
+
         double size = this.areaBounds.getSize() * 0.5d;
         Location center = this.areaBounds.getCenter();
-        Location lowCorner = center.add(-(BORDER_BUFFER + size), 0, -(BORDER_BUFFER + size));
-        Location highCorner = center.add(BORDER_BUFFER + size, 0, BORDER_BUFFER + size);
+        double borderDetectionOffset = BORDER_BUFFER + size;
+
+        Location lowCorner = center.add(-borderDetectionOffset, 0, -borderDetectionOffset);
+        Location highCorner = center.add(borderDetectionOffset, 0,  borderDetectionOffset);
 
         Component warningMessage = Component.text("Hey! Don't leave the world border!")
                                             .color(NamedTextColor.RED);
 
         for(Player player: this.getPlayerList()) {
-            Location pos = player.getLocation();
+            Location playerPos = player.getLocation();
 
-            boolean passesLowCorner = pos.x() >= lowCorner.x() || pos.z() >= lowCorner.z();
-            boolean passesHighCorner = pos.x() <= highCorner.y() || pos.z() <= highCorner.z();
+            boolean aboveLowCorner =  playerPos.x() >= lowCorner.x()  && playerPos.z() >= lowCorner.z();
+            boolean belowHighCorner = playerPos.x() <= highCorner.x() && playerPos.z() <= highCorner.z();
 
-            if(passesLowCorner && passesHighCorner)
+            if(aboveLowCorner && belowHighCorner)
                 continue;
 
             if(this.teleportPlayerToSpawn(player))
@@ -353,6 +360,10 @@ public abstract class EventInstance implements EventAPI, Listener {
             throw new IllegalStateException("Cannot change use_temporary_players while an event is running! (unsafe action)");
 
         this.useTemporaryPlayer = useTemporaryPlayer;
+    }
+
+    public void setSkipExtraBorderChecks(boolean skipExtraBorderChecks) {
+        this.skipExtraBorderChecks = skipExtraBorderChecks;
     }
 
     // What to show players when they join the server if this instance

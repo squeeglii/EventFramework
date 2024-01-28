@@ -1,5 +1,6 @@
 package me.squeeglii.plugin.eventfw.session;
 
+import me.squeeglii.plugin.eventfw.exception.InvalidConfigurationException;
 import org.bukkit.entity.Player;
 
 /**
@@ -21,7 +22,7 @@ public interface EventAPI {
 
     void onTick();
 
-    void onStart();
+    void onStart() throws InvalidConfigurationException;
 
     void onStop();
 

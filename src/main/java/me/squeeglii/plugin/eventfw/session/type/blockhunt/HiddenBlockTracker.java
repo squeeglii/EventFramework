@@ -4,7 +4,6 @@ import me.squeeglii.plugin.eventfw.EventFramework;
 import me.squeeglii.plugin.eventfw.session.EventInstance;
 import net.minecraft.core.BlockPos;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.BlockDisplay;
 import org.bukkit.entity.EntityType;
