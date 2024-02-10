@@ -134,6 +134,15 @@ public class EventCommand extends ConfiguredCommand {
                         this.locationSetter("bh_seeker_spawn",
                                 (event, val) -> ((BlockHuntEvent) event).setSeekerSpawnpoint(val),
                                 ParamAsserts.wrap(ParamAsserts.EVENT_IS_BLOCK_HUNT)
+                        ),
+                        this.intSetter("bh_hider_settle_time",
+                                (event, val) -> ((BlockHuntEvent) event).setHiderSettleTime(val),
+                                ParamAsserts.wrap(ParamAsserts.EVENT_IS_BLOCK_HUNT),
+                                ParamAsserts.INT_GREATER_THAN_ZERO
+                        ),
+                        this.boolSetter("bh_see_settled_self",
+                                (event, val) -> ((BlockHuntEvent) event).setShowSettledBlockToSelf(val),
+                                ParamAsserts.wrap(ParamAsserts.EVENT_IS_BLOCK_HUNT)
                         )
                 );
     }

@@ -1,5 +1,6 @@
 package me.squeeglii.plugin.eventfw.session.type.blockhunt;
 
+import me.squeeglii.plugin.eventfw.EventFramework;
 import me.squeeglii.plugin.eventfw.SpigotUtil;
 import me.squeeglii.plugin.eventfw.exception.InvalidConfigurationException;
 import me.squeeglii.plugin.eventfw.session.EventInstance;
@@ -27,6 +28,12 @@ import java.util.stream.Collectors;
 
 public class BlockHuntEvent extends EventInstance {
 
+    public static final int BLOCK_CAROSEL_TIME = 30;
+
+    // Shared Event Elements:
+    private int globalTick = 0;
+
+    // Round Elements:
     private Team hiderTeam;
     private Team seekerTeam;
     private Team spectatorsTeam;
@@ -35,9 +42,11 @@ public class BlockHuntEvent extends EventInstance {
 
     private boolean isRoundRunning;
 
+    // Event configuration
     private float seekerSplitFraction = 0.1f;
     private int minSeekers = 1;
-
+    private int hiderSettleTime = 40;
+    private boolean showSettledBlockToSelf = true;
     private Location seekerSpawnpoint = null;
 
 
@@ -92,10 +101,14 @@ public class BlockHuntEvent extends EventInstance {
 
     @Override
     public void onTick() {
+        this.globalTick++;
+
         if(this.isRoundRunning)
             return;
 
         this.blockTracker.values().forEach(HiddenBlockTracker::tick);
+
+        Scoreboard sc = Bukkit.getScoreboardManager().getMainScoreboard();
     }
 
     @EventHandler
@@ -112,7 +125,6 @@ public class BlockHuntEvent extends EventInstance {
 
         event.setCancelled(true);
 
-
         if(this.hiderTeam.hasPlayer(player)) {
             // switch to seekers.
             HiddenBlockTracker tracker = this.blockTracker.get(player);
@@ -124,32 +136,18 @@ public class BlockHuntEvent extends EventInstance {
             this.seekerTeam.addPlayer(player);
         }
 
+        // Handles respawning seekers + hiders moving to seekers.
         if(this.seekerTeam.hasPlayer(player)) {
-            // respawn with timer?
+            this.applySeekerProperties(player);
+
             Location seekerSpawn = this.getValidSeekerSpawnpoint();
             player.teleport(seekerSpawn);
-
-            PlayerInventory inventory = player.getInventory();
-
-            inventory.clear();
-            inventory.setChestplate(new ItemStack(Material.IRON_CHESTPLATE));
-            inventory.setLeggings(new ItemStack(Material.IRON_LEGGINGS));
-            inventory.setBoots(new ItemStack(Material.IRON_BOOTS));
-
-            ItemStack swordItem = new ItemStack(Material.IRON_SWORD);
-            ItemMeta meta = swordItem.getItemMeta();
-            meta.setUnbreakable(true);
-
-            swordItem.setItemMeta(meta);
-
-            inventory.setItem(0, swordItem);
-            inventory.setHeldItemSlot(0);
 
             return;
         }
 
         if(this.spectatorsTeam.hasPlayer(player)) {
-            // respawn instantly
+            this.applySpectatorProperties(player);
             return;
         }
     }
@@ -160,20 +158,95 @@ public class BlockHuntEvent extends EventInstance {
             return;
 
         this.blockTracker.clear();
+        this.initTeams();
 
         for(Player player: this.getPlayerList()) {
-            HiddenBlockTracker tracker = new HiddenBlockTracker(player, this, Material.BRICKS.createBlockData());
+            //HiddenBlockTracker tracker = new HiddenBlockTracker(player, this, Material.BRICKS.createBlockData());
+            //this.blockTracker.put(player, tracker);
+
+            BlockHuntTeam team = this.balanceIntoTeam(player);
+
+            this.resetPlayerProperties(player);
+
+            switch (team) {
+                case HIDER -> this.applyHiderProperties(player);
+                case SEEKER -> this.applySeekerProperties(player);
+                case SPECTATOR -> this.applySpectatorProperties(player);
+            }
         }
 
-
-
         this.isRoundRunning = true;
+    }
+
+    private void resetPlayerProperties(Player player) {
+        for(Player viewer: this.getPlayerList()) {
+            viewer.showPlayer(EventFramework.plugin(), player);
+        }
+
+        player.getInventory().clear();
+    }
+
+    private void applyHiderProperties(Player player) {
+        this.resetPlayerProperties(player);
+
+        player.setGameMode(GameMode.ADVENTURE);
+
+        for(Player viewer: this.getPlayerList()) {
+            viewer.hidePlayer(EventFramework.plugin(), player);
+        }
+
+        HiddenBlockTracker tracker;
+
+        if(!this.blockTracker.containsKey(player)) {
+            tracker = new HiddenBlockTracker(player, this, Material.BRICKS.createBlockData());
+            this.blockTracker.put(player, tracker);
+
+        } else {
+            tracker = this.blockTracker.get(player);
+        }
+
+        tracker.enable();
+    }
+
+    private void applySeekerProperties(Player player) {
+        this.resetPlayerProperties(player);
+
+        player.setGameMode(GameMode.ADVENTURE);
+
+        PlayerInventory inventory = player.getInventory();
+
+        inventory.setChestplate(new ItemStack(Material.IRON_CHESTPLATE));
+        inventory.setLeggings(new ItemStack(Material.IRON_LEGGINGS));
+        inventory.setBoots(new ItemStack(Material.IRON_BOOTS));
+
+        ItemStack swordItem = new ItemStack(Material.IRON_SWORD);
+        ItemMeta meta = swordItem.getItemMeta();
+        meta.setUnbreakable(true);
+
+        swordItem.setItemMeta(meta);
+
+        inventory.setItem(0, swordItem);
+        inventory.setHeldItemSlot(0);
+    }
+
+    private void applySpectatorProperties(Player player) {
+        this.resetPlayerProperties(player);
+        player.setGameMode(GameMode.SPECTATOR);
     }
 
 
 
 
     protected void initTeams() {
+        if(this.isRoundRunning) {
+            EventFramework.plugin().getLogger().warning("(BlockHunt) Attempted to re-init teams mid-round.");
+            return;
+        }
+
+        if(this.hiderTeam != null) this.hiderTeam.unregister();
+        if(this.seekerTeam != null) this.seekerTeam.unregister();
+        if(this.spectatorsTeam != null) this.spectatorsTeam.unregister();
+
         Scoreboard scoreboard = SpigotUtil.getServerScoreboard();
         this.hiderTeam = scoreboard.registerNewTeam("e-hide-"+UUID.randomUUID());
         this.hiderTeam.color(NamedTextColor.GREEN);
@@ -225,6 +298,23 @@ public class BlockHuntEvent extends EventInstance {
                 .collect(Collectors.toSet());
     }
 
+    private Location getValidSeekerSpawnpoint() {
+        if(this.seekerSpawnpoint == null) {
+
+        }
+
+        //TODO FIX
+        return null;
+    }
+
+    public int getHiderSettleTime() {
+        return this.hiderSettleTime;
+    }
+
+    public boolean shouldShowSettledBlockToPlayer() {
+        return this.showSettledBlockToSelf;
+    }
+
     public void setSeekerSplitFraction(float seekerSplitFraction) {
         this.seekerSplitFraction = seekerSplitFraction;
     }
@@ -233,13 +323,16 @@ public class BlockHuntEvent extends EventInstance {
         this.minSeekers = minSeekers;
     }
 
+    public void setHiderSettleTime(int hiderSettleTime) {
+        this.hiderSettleTime = hiderSettleTime;
+    }
+
+    public void setShowSettledBlockToSelf(boolean showSettledBlockToSelf) {
+        this.showSettledBlockToSelf = showSettledBlockToSelf;
+    }
+
     public void setSeekerSpawnpoint(Location seekerSpawnpoint) {
         this.seekerSpawnpoint = seekerSpawnpoint;
     }
 
-    private Location getValidSeekerSpawnpoint() {
-        if(this.seekerSpawnpoint == null) {
-
-        }
-    }
 }

@@ -14,7 +14,7 @@ public class HiddenBlockTracker {
     public static final int TICKS_TO_SETTLE = 40;
 
     private final Player trackedPlayer;
-    private final EventInstance event;
+    private final BlockHuntEvent event;
     private final BlockData block;
 
     private BlockPos lastPosition;
@@ -27,7 +27,7 @@ public class HiddenBlockTracker {
     private boolean isEnabled = false;
 
 
-    public HiddenBlockTracker(Player target, EventInstance event, BlockData block) {
+    public HiddenBlockTracker(Player target, BlockHuntEvent event, BlockData block) {
         this.trackedPlayer = target;
         this.event = event;
         this.block = block;
@@ -40,7 +40,7 @@ public class HiddenBlockTracker {
 
 
     // Everyone has a tracker but only hiders use the ticking.
-    private boolean enable() {
+    public boolean enable() {
         if(this.isEnabled)
             return false;
 
@@ -92,7 +92,9 @@ public class HiddenBlockTracker {
 
         this.ticksStoodStill = 0;
 
-        //TODO: Re-snap entity to user pos.
+        if(this.hasSettled) {
+            this.unsettle();
+        }
     }
 
     public void onStandTick() {
@@ -100,7 +102,29 @@ public class HiddenBlockTracker {
 
         this.ticksStoodStill++;
 
-        //TODO: Re-snap entity to user pos.
+        if(this.hasSettled) return;
+
+        int settleTicks = this.event.getHiderSettleTime();
+
+        if(this.ticksStoodStill < settleTicks) {
+            // Update Counter
+            return;
+        }
+
+        if(this.ticksStoodStill == settleTicks) {
+            this.broadcastVisualState(false);
+            this.settle();
+            return;
+        }
+
+        // ...
+
+    }
+
+    public void broadcastVisualState(boolean shouldRevert) {
+        for(Player player : this.event.getPlayerList()) {
+
+        }
     }
 
     /**
@@ -143,9 +167,7 @@ public class HiddenBlockTracker {
 
         this.hasSettled = false;
 
-        for(Player player: this.event.getPlayerList()) {
-            this.updateVisualStateFor(player, false);
-        }
+        this.broadcastVisualState(false);
     }
 
     private void settle() {
@@ -153,10 +175,7 @@ public class HiddenBlockTracker {
             return;
 
         this.hasSettled = true;
-
-        for(Player player: this.event.getPlayerList()) {
-            this.updateVisualStateFor(player, false);
-        }
+        this.broadcastVisualState(false);
     }
 
     public BlockData getBlock() {
@@ -164,7 +183,7 @@ public class HiddenBlockTracker {
     }
 
     public double getSettleProgress() {
-        return (double) this.ticksStoodStill / TICKS_TO_SETTLE;
+        return (double) this.ticksStoodStill / this.event.getHiderSettleTime();
     }
 
     public boolean isEnabled() {
