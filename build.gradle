@@ -1,7 +1,7 @@
 plugins {
-    id 'java'
-    id "com.github.johnrengelman.shadow" version "8.1.1"
-    id("io.papermc.paperweight.userdev") version "1.5.5"
+    id("java")
+    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("io.papermc.paperweight.userdev") version "1.7.1"
 }
 
 boolean isModVersionDefined = project.properties["plugin_version"] == null ||
@@ -14,13 +14,8 @@ String pluginVer = isModVersionDefined
 group = project.properties.maven_group
 version = "%s+%s.spigot".formatted(pluginVer, project.properties["minecraft_version"])
 
-
 repositories {
     mavenCentral()
-    maven {
-        name = "spigotmc-repo"
-        url = "https://hub.spigotmc.org/nexus/content/repositories/snapshots/"
-    }
     maven {
         name = "sonatype"
         url = "https://oss.sonatype.org/content/groups/public/"
@@ -33,22 +28,27 @@ repositories {
         name = "command-api"
         url = "https://repo.codemc.org/repository/maven-public/"
     }
+    maven {
+        name = "Paper MC"
+        url = "https://repo.papermc.io/repository/maven-public/"
+    }
 }
 
+paperweight.reobfArtifactConfiguration = io.papermc.paperweight.userdev.ReobfArtifactConfiguration.Companion.MOJANG_PRODUCTION
 
 dependencies {
     paperweight.paperDevBundle(project.properties["spigot_distribution"])
 
-    implementation "dev.jorel:commandapi-bukkit-shade:${project.properties["command_api_version"]}"
+    implementation("dev.jorel:commandapi-bukkit-shade-mojang-mapped:${project.properties["command_api_version"]}")
 }
 
 shadowJar {
     dependencies {
-        exclude(dependency('com.mojang:brigadier'))
+        exclude(dependency("com.mojang:brigadier"))
     }
 
     // Shade in command api and avoid conflicts :)
-    relocate 'dev.jorel.commandapi', 'me.squeeglii.plugin.eventfw.commandapi'
+    relocate("dev.jorel.commandapi", "me.squeeglii.plugin.eventfw.commandapi")
 }
 
 processResources {
@@ -64,11 +64,7 @@ processResources {
     }
 }
 
-tasks.assemble {
-    dependsOn(reobfJar)
-}
-
-def targetJavaVersion = 17
+def targetJavaVersion = 21
 java {
     def javaVersion = JavaVersion.toVersion(targetJavaVersion)
     sourceCompatibility = javaVersion

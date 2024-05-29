@@ -109,6 +109,12 @@ public class BlockHuntEvent extends EventInstance {
         this.blockTracker.values().forEach(HiddenBlockTracker::tick);
 
         Scoreboard sc = Bukkit.getScoreboardManager().getMainScoreboard();
+
+        for (Player player: this.getPlayerList()) {
+            Team pTeam = sc.getPlayerTeam(player);
+
+            // TODO: abc123 ???
+        }
     }
 
     @EventHandler
@@ -150,6 +156,11 @@ public class BlockHuntEvent extends EventInstance {
             this.applySpectatorProperties(player);
             return;
         }
+    }
+
+
+    private void displayItem(Player player) {
+
     }
 
 
